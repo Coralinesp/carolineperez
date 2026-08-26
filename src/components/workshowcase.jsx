@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  AnimatePresence,
   motion,
   useMotionValue,
   useMotionValueEvent,
@@ -21,11 +20,12 @@ export const services = [
   { alt: "3D Design", image: "/3d.jpg", category: "3D Design" },
 ];
 
-/** Las portadas rondan 14:9; el mazo las uniforma con object-cover. */
+/** Las portadas rondan 14:9; la tarjeta las uniforma con object-cover. */
 const DECK_RATIO = "14 / 9";
-const VISIBLE_BEHIND = 2;
 /** Scroll que consume cada proyecto mientras la sección está anclada. */
 const STEP_VH = 45;
+/** Duración del fundido entre portadas, en ms. */
+const FADE_MS = 400;
 
 /**
  * Tramos del viaje de la tarjeta, medidos sobre el tramo previo al anclaje
@@ -60,22 +60,27 @@ function offsetWithin(el, ancestor) {
   return { x, y };
 }
 
-/** Línea de texto con revelado enmascarado. */
+/**
+ * Línea de texto con revelado enmascarado.
+ *
+ * Sin `AnimatePresence`: con `mode="wait"` la salida bloqueaba la entrada, así
+ * que cada cambio costaba salida + entrada encadenadas y al pasar proyectos
+ * seguido se acumulaban y el texto iba por detrás del scroll. Cambiando la
+ * `key` basta: React desmonta la línea vieja y la nueva sube desde abajo, que
+ * es lo único que se ve gracias al `overflow-hidden` del padre.
+ */
 function MaskedLine({ id, children, className = "" }) {
   return (
     <span className="block overflow-hidden">
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={id}
-          initial={{ y: "110%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "-110%" }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className={`block ${className}`}
-        >
-          {children}
-        </motion.span>
-      </AnimatePresence>
+      <motion.span
+        key={id}
+        initial={{ y: "110%" }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className={`block ${className}`}
+      >
+        {children}
+      </motion.span>
     </span>
   );
 }
@@ -181,7 +186,15 @@ export default function WorkShowcase() {
     };
   }, [measure]);
 
-  useEffect(() => setIndex(0), [selected]);
+  // Espejo del índice para el handler de scroll: `deckProgress` avisa en cada
+  // frame y sólo unos pocos cruzan de paso, así que se compara aquí y no se
+  // llama a setIndex si no hace falta.
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    indexRef.current = 0;
+    setIndex(0);
+  }, [selected]);
 
   /**
    * Al elegir una tarjeta se desplaza la página hasta donde el bloque se ancla,
@@ -212,8 +225,10 @@ export default function WorkShowcase() {
 
   useMotionValueEvent(deckProgress, "change", (progress) => {
     if (!total) return;
-    const step = Math.floor(progress * total);
-    setIndex(Math.min(total - 1, Math.max(0, step)));
+    const step = Math.min(total - 1, Math.max(0, Math.floor(progress * total)));
+    if (step === indexRef.current) return;
+    indexRef.current = step;
+    setIndex(step);
   });
 
   const safe = geo ?? { fromX: 0, fromY: 0, fromW: 0, fromH: 0, toX: 0, toY: 0, toW: 0, toH: 0 };
@@ -231,6 +246,10 @@ export default function WorkShowcase() {
   // Deja de capturar el ratón una vez cede el relevo, o taparía al mazo con un
   // elemento invisible (opacity 0 sigue recibiendo eventos).
   const travelPointer = useTransform(travel, (p) => (p >= HANDOFF[1] ? "none" : "auto"));
+  // Y se retira del pintado en el mismo instante: con `opacity: 0` el navegador
+  // le sigue manteniendo su capa (dos portadas grandes y una `perspective`)
+  // durante todo el anclaje, que es justo cuando hay que ir sobrado.
+  const travelVisibility = useTransform(travel, (p) => (p >= HANDOFF[1] ? "hidden" : "visible"));
 
   const tilt = useTilt({ max: 10, hoverScale: 1.02, glareColor: "rgba(255,255,255,0.55)" });
   const cursorX = useMotionValue(0);
@@ -293,72 +312,53 @@ export default function WorkShowcase() {
               </h3>
             </motion.div>
 
-            {/* Centro: el mazo. Su posición de layout es el destino del viaje. */}
+            {/* Centro: la tarjeta. Su posición de layout es el destino del viaje. */}
             <div
               ref={landingRef}
               className="relative mx-auto w-full max-w-[440px] lg:w-[34vw] lg:max-w-[520px]"
               style={{ aspectRatio: DECK_RATIO }}
             >
               <motion.div style={{ opacity: deckOpacity }} className="absolute inset-0">
-                {items.map((project, i) => {
-                  // Distancia respecto a la carta activa, en orden circular.
-                  const offset = (i - index + total) % total;
-                  const hiddenCard = offset > VISIBLE_BEHIND;
-                  const isTop = offset === 0;
-
-                  return (
-                    <motion.div
+                <motion.button
+                  type="button"
+                  onClick={openCurrent}
+                  onMouseMove={handleMove}
+                  onMouseEnter={() => setShowCursor(true)}
+                  onMouseLeave={() => {
+                    setShowCursor(false);
+                    tilt.onMouseLeave();
+                  }}
+                  aria-label={current ? `Ver ${current.title}` : undefined}
+                  style={{ rotateX: tilt.rotateX, rotateY: tilt.rotateY, scale: tilt.scale }}
+                  className="relative block h-full w-full overflow-hidden rounded-2xl bg-white shadow-[0_22px_60px_rgba(29,33,42,0.18)] outline-none [perspective:800px]"
+                >
+                  {/* Antes esto era un mazo y cada cambio animaba `y`, `scale` y
+                      `opacity` de las N cartas a la vez, con su sombra grande
+                      encima: mucho repintado justo mientras el usuario está
+                      haciendo scroll. Ahora la tarjeta es una sola y lo único
+                      que se mueve es la opacidad de las portadas, que el
+                      compositor resuelve sin volver a pintar. Se quedan todas
+                      montadas para que la que entra ya esté decodificada. */}
+                  {items.map((project, i) => (
+                    <img
                       key={project.id}
-                      animate={{
-                        y: offset * 20,
-                        scale: 1 - offset * 0.05,
-                        opacity: hiddenCard ? 0 : 1 - offset * 0.15,
-                      }}
-                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                      style={{ zIndex: total - offset }}
-                      className="absolute inset-0"
-                    >
-                      <motion.button
-                        type="button"
-                        disabled={!isTop}
-                        onClick={openCurrent}
-                        onMouseMove={isTop ? handleMove : undefined}
-                        onMouseEnter={isTop ? () => setShowCursor(true) : undefined}
-                        onMouseLeave={
-                          isTop
-                            ? () => {
-                                setShowCursor(false);
-                                tilt.onMouseLeave();
-                              }
-                            : undefined
-                        }
-                        aria-label={isTop ? `Ver ${project.title}` : undefined}
-                        aria-hidden={!isTop}
-                        tabIndex={isTop ? 0 : -1}
-                        style={
-                          isTop
-                            ? { rotateX: tilt.rotateX, rotateY: tilt.rotateY, scale: tilt.scale }
-                            : undefined
-                        }
-                        className="relative block h-full w-full overflow-hidden rounded-2xl bg-white shadow-[0_22px_60px_rgba(29,33,42,0.18)] outline-none [perspective:800px] disabled:cursor-default"
-                      >
-                        <img
-                          src={project.cover}
-                          alt={project.title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                        {isTop && (
-                          <motion.span
-                            aria-hidden="true"
-                            style={{ opacity: tilt.glareOpacity, background: tilt.glare }}
-                            className="pointer-events-none absolute inset-0 mix-blend-soft-light"
-                          />
-                        )}
-                      </motion.button>
-                    </motion.div>
-                  );
-                })}
+                      src={project.cover}
+                      alt=""
+                      aria-hidden="true"
+                      decoding="async"
+                      loading={i === 0 ? "eager" : "lazy"}
+                      style={{ transitionDuration: `${FADE_MS}ms` }}
+                      className={`absolute inset-0 h-full w-full object-cover transition-opacity ease-out ${
+                        i === index ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
+                  ))}
+                  <motion.span
+                    aria-hidden="true"
+                    style={{ opacity: tilt.glareOpacity, background: tilt.glare }}
+                    className="pointer-events-none absolute inset-0 mix-blend-soft-light"
+                  />
+                </motion.button>
               </motion.div>
             </div>
 
@@ -405,6 +405,7 @@ export default function WorkShowcase() {
             height: travelH,
             opacity: travelOpacity,
             pointerEvents: travelPointer,
+            visibility: travelVisibility,
             perspective: 1400,
           }}
           onMouseMove={travelTilt.onMouseMove}

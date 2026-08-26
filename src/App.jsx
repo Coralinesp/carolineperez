@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Link, useLocation } from "react-router-dom";
 import { motion } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
-import Spline from '@splinetool/react-spline';
+import { ArrowUpRight, Laptop } from 'lucide-react';
 // Componentes internos
 import Navbar from "./components/navbar";
 import Skills from './components/skills';
@@ -11,10 +10,28 @@ import CallToAction from './components/cierre';
 import AnimatedSplitText from './components/AnimatedSplitText';
 import Statement from './components/Statement';
 import { useLenis } from './components/SmoothScroll';
+// Import diferido: asi el runtime de Spline queda en su propio chunk y el
+// telefono, que nunca lo monta, tampoco lo descarga.
+const Spline = lazy(() => import('@splinetool/react-spline'));
+
 function App() {
   const [showButton, setShowButton] = useState(false);
   const location = useLocation();
   const lenisRef = useLenis();
+
+  // La escena 3D solo se monta en desktop. El valor se lee ya en el
+  // inicializador y no en un efecto, para que el hero no parpadee entre el
+  // aviso y el modelo en el primer pintado.
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia('(min-width: 768px)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsDesktop(mq.matches);
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.replace('#', '');
@@ -36,15 +53,21 @@ function App() {
         {/* Wrapper que acota el rango de "pin" del hero a solo Hero + Statement */}
         <div className="relative w-full">
           {/* Hero Section con 3D integrado */}
-          <section className="hero-section min-h-screen w-full sticky top-0 z-0 flex flex-col md:flex-row items-center justify-between md:justify-end px-4 pt-16 pb-8 sm:px-6 md:px-10 lg:px-16 overflow-hidden">
-            {/* Columna Izquierda: Escena 3D Spline (full-bleed en desktop) */}
-            <div className="w-full h-[60vh] md:h-auto relative md:absolute md:inset-y-0 md:left-0 md:w-1/2 z-10 flex items-center justify-center overflow-hidden">
-              <div className="w-full h-full scale-110 md:scale-125 translate-y-10 md:translate-y-20 origin-center">
-                <Spline
-                  scene="https://prod.spline.design/mKcp412gK4944JjS/scene.splinecode"
-                />
+          <section className="hero-section min-h-screen w-full sticky top-0 z-0 flex flex-col md:flex-row items-center justify-center md:justify-end px-4 pt-16 pb-8 sm:px-6 md:px-10 lg:px-16 overflow-hidden">
+            {/* Columna Izquierda: Escena 3D Spline (full-bleed en desktop).
+                En movil no se monta: en vertical la escena queda recortada, se
+                come 60vh del hero y arrastra la marca de agua por encima. */}
+            {isDesktop && (
+              <div className="w-full h-[60vh] md:h-auto relative md:absolute md:inset-y-0 md:left-0 md:w-1/2 z-10 flex items-center justify-center overflow-hidden">
+                <div className="w-full h-full scale-110 md:scale-125 translate-y-10 md:translate-y-20 origin-center">
+                  <Suspense fallback={null}>
+                    <Spline
+                      scene="https://prod.spline.design/mKcp412gK4944JjS/scene.splinecode"
+                    />
+                  </Suspense>
+                </div>
               </div>
-            </div>
+            )}
             {/* Cuadrante decorativo sobre la marca de agua de Spline */}
             <div className="hidden md:block absolute top-0 left-[30%] w-[24%] h-28 lg:h-32 bg-[#f8f8f6] z-20 pointer-events-none" />
             {/* Columna Derecha: Nombre y Título */}
@@ -60,6 +83,14 @@ function App() {
               <h1 className="hero-title text-5xl md:text-7xl font-extrabold tracking-tight">
                 Caroline Pérez
               </h1>
+
+              {/* Sustituye a la escena 3D en movil, en voz baja */}
+              {!isDesktop && (
+                <p className="mt-8 flex items-center justify-end gap-2 text-xs font-normal normal-case tracking-normal text-black/35">
+                  <Laptop size={14} className="shrink-0" aria-hidden="true" />
+                  There&rsquo;s a 3D scene here &mdash; best viewed on a laptop.
+                </p>
+              )}
             </motion.div>
           </section>
           {/* Statement inmersivo */}

@@ -72,7 +72,11 @@ export default function Statement() {
               onMouseLeave={word.sticker ? () => setPeeking(null) : undefined}
               className={`relative inline-block mr-[0.24em] ${
                 word.highlight
-                  ? "underline decoration-[5px] underline-offset-[10px] decoration-[#385BF0]"
+                  // En em y no en px: el texto va con clamp y leading-[1.05],
+                  // asi que en px el subrayado no encoge con la fuente y a
+                  // partir de ~1240px de ancho ya cae dentro de la linea
+                  // siguiente. En em conserva la proporcion a cualquier tamano.
+                  ? "underline decoration-[0.09em] underline-offset-[0.16em] decoration-[#385BF0]"
                   : ""
               } ${word.sticker ? "cursor-pointer" : ""}`}
             >
