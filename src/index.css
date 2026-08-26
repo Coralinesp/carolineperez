@@ -75,26 +75,39 @@
 }
 
 /* Scrollbar personalizada */
-.custom-scroll::-webkit-scrollbar {
-  height: 6px;
-  width: 5px;
-}
-
-.custom-scroll::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 9999px;
-}
-
-.custom-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 body {
   @apply font-sans bg-background text-foreground;
 }
 
 html {
   overflow-x: hidden;
+  /* Firefox: no admite ::-webkit-scrollbar, se configura con estas dos. */
+  scrollbar-width: thin;
+  scrollbar-color: #1d212a transparent;
+}
+
+/* Pulgar negro sobre canal invisible: el fondo se deja transparente para que
+   tome el color de la sección que haya detrás en cada momento. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #1d212a;
+  border-radius: 9999px;
+  /* El borde transparente adelgaza el pulgar sin reducir el área de agarre. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Lenis smooth scroll */
@@ -143,33 +156,6 @@ html.lenis body {
   animation-iteration-count: infinite;
 }
 
-.carousel-container::-webkit-scrollbar {
-  display: none;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.09);
-  border-radius: 4px;
-}
-
-.custom-scrollbar {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(255,255,255,0.09) transparent;
-}
-
-
-
 :root {
   --radius: 8px; /* o 8px, o el valor que quieras */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -186,13 +172,10 @@ html.lenis body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-
 body {
   margin: 0;
   background: #f8f8f6;
 }
-
-
 
 @media (prefers-color-scheme: light) {
   :root {

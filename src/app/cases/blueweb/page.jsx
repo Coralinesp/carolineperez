@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Navbar from '../../../components/navbar';
+import CaseStudyNav from '../../../components/CaseStudyNav';
 import projects from '../../../components/projects/projects';
 
 export default function Bluebreezeweb() {
@@ -9,17 +10,6 @@ export default function Bluebreezeweb() {
     (p) => p.title === 'DESIGN A RESPONSIVE WEBSITE FOR A CAFE'
   );
 
-  const [activeSection, setActiveSection] = useState('#intro');
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      setActiveSection(window.location.hash);
-    };
-
-    handleHashChange(); // set initial
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
 
   const sections = [
     { id: 'overview', label: 'Overview' },
@@ -47,30 +37,10 @@ export default function Bluebreezeweb() {
         )}
 
         <div className="flex flex-col md:flex-row w-full mt-8 gap-8">
-          {/* Subnavbar lateral izquierdo */}
-          <nav className="md:w-1/4 w-full sticky top-16 sm:top-20 md:top-32 self-start overflow-x-auto md:overflow-visible bg-[#f8f8f6] md:bg-transparent z-10">
-            <ul className="flex md:flex-col gap-2 md:gap-4 text-sm font-medium text-gray-500 flex-wrap">
-              {sections.map((section) => {
-                const isActive = activeSection === `#${section.id}`;
-                return (
-                  <li key={section.id}>
-                    <a
-                      href={`#${section.id}`}
-                      className={`flex items-center gap-2 transition-colors duration-200 ${
-                        isActive ? 'text-[#385BF0]' : 'text-gray-500 hover:text-[#385BF0]'
-                      }`}
-                    >
-                      
-                      <span>{section.label}</span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+          <CaseStudyNav sections={sections} />
 
           {/* Contenido desplazable */}
-         <div className="md:w-3/4 w-full flex flex-col gap-12 md:overflow-y-auto md:max-h-[80vh] custom-scroll scroll-smooth px-1">
+         <div className="md:w-3/4 w-full flex flex-col gap-12 scroll-smooth px-1">
             <section id="overview">
               <h2 className="text-3xl font-semibold mb-2 text-indigo-600">Overview</h2>
               <p className="text-base leading-relaxed">

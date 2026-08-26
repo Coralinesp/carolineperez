@@ -1,62 +1,202 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { MapPin, Download } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { motion, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion';
+import { Instagram, Linkedin, Send } from 'lucide-react';
 import Navbar from '../../components/navbar';
 import CallToAction from '../../components/cierre';
+import { CONTACT_EMAIL, socialLinks } from '../../data/contact';
+import useTilt from '../../hooks/useTilt';
+
+
+/** Lucide no trae Behance, así que la marca va a mano. */
+function BehanceMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid h-[18px] w-[22px] place-items-center rounded-[5px] border-[1.5px] border-current text-[8px] font-bold leading-none"
+    >
+      Bē
+    </span>
+  );
+}
+
+const socials = [
+  { label: "Behance", Icon: BehanceMark },
+  { label: "LinkedIn", Icon: (props) => <Linkedin size={18} {...props} /> },
+  { label: "Instagram", Icon: (props) => <Instagram size={18} {...props} /> },
+].map((entry) => ({
+  ...entry,
+  href: socialLinks.find((link) => link.label === entry.label).href,
+}));
 
 /**
  * Intro del hero como declaración tipográfica: se escribe por segmentos para
  * poder resaltar partes, y luego se aplana a palabras sueltas para animarlas
  * una a una (cada palabra es inline-block, así el texto sigue re-fluyendo).
  */
+const name = "Caroline Pérez";
+
+const BEACH_PHOTO = "/beyond/d3ccb8ed-d2a6-49d2-948d-476388f5e4dc.jpg";
+
+/** Foto que asoma al pasar el cursor por el país. La tarjeta va vertical (3/4)
+ *  igual que el archivo, así object-cover no recorta nada. */
+const PEEK_IMAGE = "/beyond/IMG-20230406-WA0184.jpg";
+const PEEK_W = 210;
+const PEEK_H = 280;
+
+/** Grados máximos de inclinación de la foto en cada eje. */
+const MAX_TILT = 15;
+
 const intro = [
-  { text: "Hey, I’m" },
-  { text: "Caroline Pérez,", className: "font-bold" },
-  { text: "a" },
-  { text: "software engineer and UX/UI designer", className: "text-[#385BF0]" },
+  { text: "A" },
+  { text: "software engineer and UX/UI designer", highlight: true },
+  { text: "based in the" },
+  { text: "Dominican Republic,", peek: true },
   {
     text:
-      "from the Dominican Republic, building the interfaces I design. " +
+      "building the interfaces I design. " +
       "With a background in 3D and electronics, and a keen eye for detail. " +
       "Focused on crafting simple, accessible products that go from research to production.",
   },
 ];
 
-const introWords = intro.flatMap((segment) =>
-  segment.text.split(" ").map((word) => ({ word, className: segment.className }))
-);
+/**
+ * Cada palabra va en su propio inline-block para poder animarla y que el
+ * párrafo siga re-fluyendo. El subrayado del resaltado se dibuja con
+ * border-bottom en vez de text-decoration: un inline-block no hereda la
+ * decoración del padre, y el borde sí cubre el padding, así el trazo queda
+ * continuo entre palabras. Por eso las palabras resaltadas se separan con
+ * padding (dentro del borde) y la última con margin (para que el trazo corte
+ * justo al terminar la frase).
+ */
+const introSegments = (() => {
+  let order = 0;
+  return intro.map((segment) => {
+    const words = segment.text.split(" ");
+    return {
+      ...segment,
+      words: words.map((word, i) => ({
+        word,
+        order: order++,
+        endsSegment: i === words.length - 1,
+      })),
+    };
+  });
+})();
 
+/**
+ * `logo` es opcional: si hay un archivo en public/logos/ se usa; si no, la
+ * ficha cae al monograma de `mark`. `current` la pinta con el azul de acento.
+ */
 const experience = [
   {
-    role: "UI Designer Intern",
-    company: "Botcity (Remote)",
-    date: "Nov 2025 — Present",
-    desc: "Designing interactive web interfaces and adapting prototypes into functional solutions.",
+    name: "Takum Studio",
+    role: "UX/UI Designer",
+    date: "Apr 2026 - Present",
+    desc:
+      "Redesign and development of modern web interfaces focused on UX/UI, built for performance, " +
+      "maintainability and reusable components. AI-assisted development through prompt engineering " +
+      "to speed up delivery and technical decision-making.",
+    stack: "Figma (advanced prototyping) · Claude Code · Design Systems · WCAG",
+    logo: "/logos/takum.webp",
+    mark: "TK",
+    current: true,
   },
   {
-    role: "UX/UI Designer & Frontend Developer",
-    company: "Arcode Dominicana",
-    date: "Jan 2025",
-    desc: "Leading design processes and translating UI designs into functional React components.",
+    name: "Botcity",
+    role: "UI Designer Internship",
+    date: "Nov 2025 - Mar 2026",
+    desc:
+      "Interactive interface design, UI prototypes using advanced Figma features, adaptation of " +
+      "prototypes into functional solutions, and coordination of design processes.",
+    stack: "Figma (advanced prototyping) · UX Research · Design Systems · WCAG",
+    logo: "/logos/botcity.png",
+    mark: "BC",
   },
   {
-    role: "UX/UI Designer & Frontend Developer",
-    company: "GL SILA",
-    date: "Sep 2024 — Apr 2025",
-    desc: "Full development of a responsive website with a blog system integrated via Supabase.",
+    name: "Arcode Dominicana",
+    role: "Frontend Developer & UX/UI Designer",
+    date: "Jan 2025 - Dec 2025",
+    desc:
+      "Development of interactive web interfaces, translating UI designs into functional " +
+      "components, and design leadership.",
+    stack: "React · HTML · CSS · JavaScript · Figma · Clickup",
+    logo: "/logos/arcode.png",
+    mark: "AD",
   },
   {
-    role: "Freelance UX/UI & 3D Designer",
-    company: "Multiple clients",
-    date: "2021 — Present",
-    desc: "Ongoing collaborations across design, frontend, and 3D, from branding to full product builds.",
+    name: "GL SILA",
+    role: "Frontend Developer & UX/UI Designer",
+    date: "Sep 2024 - Apr 2025",
+    desc:
+      "Full design and development of a responsive website using React, with a blog management " +
+      "system implemented in Supabase.",
+    stack: "React · HTML · CSS · JavaScript · Figma",
+    logo: "/logos/glsila.png",
+    mark: "GL",
   },
 ];
 
 const education = [
-  { title: "Google UX Design", school: "Coursera · Online Certificate", date: "Jun 30, 2025" },
-  { title: "Software Engineering", school: "UNAPEC", date: "2023 — 2026" },
-  { title: "Electronics (High School)", school: "Instituto Politécnico Loyola", date: "2019 — 2022" },
+  {
+    name: "UNAPEC",
+    role: "Software Engineering",
+    date: "2023 - 2026",
+    logo: "/logos/unapec.png",
+    mark: "UN",
+  },
+  {
+    name: "Instituto Politécnico Loyola",
+    role: "Electronics, High School",
+    date: "2019 - 2022",
+    logo: "/logos/ipl.svg",
+    mark: "IPL",
+  },
+];
+
+/** De la más reciente a la más antigua. */
+const certifications = [
+  {
+    name: "Epic Games",
+    role: "User Interface in Game Design",
+    date: "Jun 2026",
+    logo: "/logos/epicgames.png",
+    mark: "EG",
+  },
+  {
+    name: "ITLA",
+    role: "C# .NET Básico",
+    date: "Apr 2026",
+    logo: "/logos/itla.png",
+    mark: "ITLA",
+  },
+  {
+    name: "Coursera",
+    role: "WCAG Compliance: Web Accessibility Best Practices",
+    date: "Jan 2026",
+    logo: "/logos/coursera.png",
+    mark: "CO",
+  },
+  {
+    name: "Microsoft",
+    role: "Foundations of Coding Front-End",
+    date: "Dec 2025",
+    logo: "/logos/microsoft.png",
+    mark: "MS",
+  },
+  {
+    name: "LinkedIn",
+    role: "React Esencial",
+    date: "Sep 2025",
+    logo: "/logos/linkedin.png",
+    mark: "IN",
+  },
+  {
+    name: "Coursera",
+    role: "Google UX Design Certificate",
+    date: "Jun 2025",
+    logo: "/logos/coursera.png",
+    mark: "GU",
+  },
 ];
 
 /**
@@ -83,7 +223,7 @@ const education = [
  * carril (187 px), así que no pueden amontonarse.
  */
 const CANVAS_W = 1440;
-const CANVAS_H = 4000;
+const CANVAS_H = 3820;
 /** Cuánto scroll cuesta el recorrido: >1 hace que las fotos suban más lento. */
 const SCROLL_FACTOR = 1.1;
 
@@ -91,35 +231,107 @@ const pct = (value, total) => `${(value / total) * 100}%`;
 
 const moments = [
   // carril izquierdo
-  { src: "/beyond/00521698-557B-4C80-902B-4D015C9139A2.jpg", alt: "Colour-pencil portrait study",               ratio: "9/16",      left: 55,   top: 0,    width: 280, speed: 40 },
-  { src: "/beyond/IMG-20210929-WA0047.jpg",                  alt: "Acrylic study of Van Gogh’s Starry Night",   ratio: "1081/1280", left: 40,   top: 690,  width: 340, speed: -45 },
-  { src: "/beyond/IMG-20211125-WA0013.jpg",                  alt: "Soldered LED board resting on my hand",      ratio: "9/16",      left: 65,   top: 1280, width: 275, speed: 35 },
-  { src: "/beyond/IMG_9434.jpg",                             alt: "At the American Museum of Natural History",  ratio: "3/4",       left: 45,   top: 1960, width: 335, speed: -40 },
-  { src: "/beyond/Swim.webp",                                alt: "The olympic pool where I used to train",     ratio: "694/811",   left: 35,   top: 2600, width: 355, speed: 45 },
-  { src: "/beyond/IMG_0693.jpg",                             alt: "Third place at Oracle’s Back to the Cloud",  ratio: "3/4",       left: 50,   top: 3210, width: 330, speed: -35 },
+  { src: "/beyond/00521698-557B-4C80-902B-4D015C9139A2.jpg", alt: "Colour-pencil portrait study",              ratio: "9/16",      left: 55,   top: 0,    width: 280, speed: 40 },
+  { src: "/beyond/IMG-20210929-WA0047.jpg",                  alt: "Acrylic study of Van Gogh’s Starry Night",  ratio: "1081/1280", left: 40,   top: 690,  width: 340, speed: -45 },
+  { src: "/beyond/IMG-20211125-WA0013.jpg",                  alt: "Soldered LED board resting on my hand",     ratio: "9/16",      left: 65,   top: 1280, width: 275, speed: 35 },
+  { src: "/beyond/IMG_9434.jpg",                             alt: "At the American Museum of Natural History", ratio: "3/4",       left: 45,   top: 1960, width: 335, speed: -40 },
+  { src: "/beyond/Swim.webp",                                alt: "The olympic pool where I used to train",    ratio: "694/811",   left: 35,   top: 2600, width: 355, speed: 45 },
+  { src: "/beyond/IMG_0693.jpg",                             alt: "Third place at Oracle’s Back to the Cloud", ratio: "3/4",       left: 50,   top: 3210, width: 330, speed: -35 },
   // carril derecho
-  { src: "/beyond/20211031_223337.jpg",                      alt: "LEDs lit up on a breadboard at night",       ratio: "3/4",       left: 1045, top: 250,  width: 345, speed: -50 },
-  { src: "/beyond/IMG-20211105-WA0054.jpg",                  alt: "Breadboard circuit from electronics class",  ratio: "9/16",      left: 1060, top: 900,  width: 285, speed: 45 },
-  { src: "/beyond/IMG-20220701-WA0019.jpg",                  alt: "Asleep over my backpack at the workshop",    ratio: "3/4",       left: 1050, top: 1600, width: 330, speed: -35 },
-  { src: "/beyond/WhatsApp%20Image%202026-08-25%20at%2012.47.15%20AM.jpeg", alt: "Swimming medals hanging on the wall", ratio: "9/16", left: 1065, top: 2230, width: 280, speed: 50 },
-  { src: "/beyond/IMG_0236.jpg",                             alt: "Resort pool lit up at night",                ratio: "3/4",       left: 1045, top: 2920, width: 340, speed: -40 },
-  { src: "/beyond/IMG_6301.jpg",                             alt: "Suited up inside a race car",                ratio: "4/3",       left: 1040, top: 3560, width: 370, speed: 45 },
-  // cruzadas: rozan el título, alternando izquierda / derecha / izquierda
-  { src: "/beyond/IMG-20220710-WA0023.jpeg",                 alt: "Modelling a futuristic city in Blender",     ratio: "16/9",      left: 400,  top: 560,  width: 340, speed: 30 },
-  { src: "/beyond/IMG_9152.jpg",                             alt: "The mountains back home",                    ratio: "4/3",       left: 690,  top: 1850, width: 330, speed: -30 },
-  { src: "/beyond/IMG-20230528-WA0016.jpeg",                 alt: "Swim meet athlete accreditations",           ratio: "1/1",       left: 410,  top: 3050, width: 290, speed: 25 },
+  { src: "/beyond/20211031_223337.jpg",                      alt: "LEDs lit up on a breadboard at night",      ratio: "3/4",       left: 1045, top: 250,  width: 345, speed: -50 },
+  { src: "/beyond/IMG-20211105-WA0054.jpg",                  alt: "Breadboard circuit from electronics class", ratio: "9/16",      left: 1060, top: 900,  width: 285, speed: 45 },
+  { src: "/beyond/WhatsApp%20Image%202026-08-25%20at%2012.47.15%20AM.jpeg", alt: "Swimming medals hanging on the wall", ratio: "900/1471", left: 1055, top: 1600, width: 300, speed: -35 },
+  { src: "/beyond/IMG_0236.jpg",                             alt: "Resort pool lit up at night",               ratio: "3/4",       left: 1045, top: 2290, width: 340, speed: 50 },
+  { src: BEACH_PHOTO,                                        alt: "Sunset over the beach back home",           ratio: "3/4",       left: 1050, top: 2950, width: 345, speed: -40 },
+  // cruzadas: rozan el título, una por la izquierda y otra por la derecha
+  { src: "/beyond/IMG_6301.jpg",                             alt: "Suited up inside a race car",               ratio: "4/3",       left: 400,  top: 560,  width: 330, speed: 30 },
+  { src: "/beyond/IMG-20230528-WA0016.jpeg",                 alt: "Swim meet athlete accreditations",          ratio: "1/1",       left: 700,  top: 2150, width: 300, speed: -25 },
 ];
 
-function RevealRow({ children, i }) {
+function EntryCard({ entry, i }) {
+  const { name, role, date, desc, stack, mark, logo, logoFill, current } = entry;
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
+    <motion.li
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.7, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.6, delay: i * 0.07, ease: [0.22, 1, 0.36, 1] }}
+      className="group rounded-2xl border border-black/[0.06] bg-white px-5 py-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#385BF0]/25 hover:shadow-[0_14px_34px_rgba(29,33,42,0.07)] sm:px-6 sm:py-6"
     >
-      {children}
-    </motion.div>
+      {/* Ficha 96x56: cuadrada se le queda corta a los logos que son wordmark
+          (Takum), y los monogramas se ven bien igual centrados en ella. */}
+      <div className="flex items-center gap-4 sm:gap-5">
+        {/* `logoFill` es para logos que traen su propio fondo sólido (Dra Karla):
+            llenan la ficha en vez de flotar recortados sobre el blanco. */}
+        <span
+          className={`grid h-16 w-24 shrink-0 place-items-center overflow-hidden rounded-xl border transition-colors duration-300 ${
+            logo
+              ? `border-black/[0.06] bg-white ${logoFill ? "" : "p-2"}`
+              : `border-transparent text-sm font-extrabold tracking-tight text-white ${
+                  current ? "bg-[#385BF0]" : "bg-[#1D212A] group-hover:bg-[#385BF0]"
+                }`
+          }`}
+        >
+          {logo ? (
+            // max-h/max-w y no h-full/w-full: acotan la imagen a la caja en vez
+            // de forzarla a llenarla, que es lo que la desbordaba.
+            <img
+              src={logo}
+              alt={`${name} logo`}
+              className={
+                logoFill ? "h-full w-full object-cover" : "max-h-full max-w-full object-contain"
+              }
+              loading="lazy"
+            />
+          ) : (
+            <span aria-hidden="true">{mark}</span>
+          )}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+            <h3 className="text-base font-bold tracking-tight text-[#1D212A] sm:text-lg">{name}</h3>
+            <span className="shrink-0 text-xs text-black/40 sm:text-sm">{date}</span>
+          </div>
+          <p className="mt-0.5 text-sm text-black/45 sm:text-base">{role}</p>
+        </div>
+      </div>
+
+      {(desc || stack) && (
+        <div className="mt-4 sm:ml-[7.25rem]">
+          {desc && <p className="text-sm leading-relaxed text-black/45">{desc}</p>}
+          {stack && (
+            <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-[#385BF0]">
+              {stack}
+            </p>
+          )}
+        </div>
+      )}
+    </motion.li>
+  );
+}
+
+/** Columna de título fija + lista de fichas al lado. */
+function EntryGroup({ title, lead, entries }) {
+  return (
+    <div className="flex flex-col gap-10 lg:flex-row lg:gap-16 xl:gap-24">
+      {/* El tamaño del título está atado al ancho de esta columna: "CERTIFICATIONS"
+          es una sola palabra de 14 letras y no puede partirse, así que con un
+          clamp más grande se salía encima de las fichas. */}
+      <div className="lg:sticky lg:top-28 lg:h-fit lg:w-[34%] lg:self-start">
+        <h2 className="font-extrabold uppercase tracking-tight leading-[0.95] text-[#1D212A] text-[clamp(2rem,3vw,3rem)]">
+          {title}
+        </h2>
+        {lead && <p className="mt-6 max-w-md text-sm leading-relaxed text-black/45 sm:text-base">{lead}</p>}
+      </div>
+
+      <ul className="flex flex-1 flex-col gap-3">
+        {entries.map((entry, i) => (
+          <EntryCard key={entry.name + entry.role} entry={entry} i={i} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -191,7 +403,35 @@ export default function About() {
     offset: ["start start", "end start"],
   });
   const photoY = useTransform(heroProgress, [0, 1], [0, 120]);
+
+  // Inclinación 3D de la foto al mover el mouse (mismo efecto que las tarjetas
+  // de Services).
+  const tilt = useTilt({ max: MAX_TILT });
   const photoRotate = useTransform(heroProgress, [0, 1], [8, 2]);
+
+  // ----- Preview que asoma al pasar el cursor por "Dominican Republic" -----
+  const [peeking, setPeeking] = useState(false);
+  const [peekEnabled, setPeekEnabled] = useState(false);
+  const peekX = useMotionValue(0);
+  const peekY = useMotionValue(0);
+  const peekSpringX = useSpring(peekX, { damping: 30, stiffness: 250, mass: 0.5 });
+  const peekSpringY = useSpring(peekY, { damping: 30, stiffness: 250, mass: 0.5 });
+
+  // Sólo con puntero real: en táctil no hay hover y el preview quedaría colgado.
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: fine) and (min-width: 768px)");
+    const update = () => setPeekEnabled(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // El offset va en el propio valor y no con clases -translate-*: Framer escribe
+  // `transform` inline y pisaría cualquier translate de Tailwind.
+  const handlePeekMove = (e) => {
+    peekX.set(e.clientX - PEEK_W / 2);
+    peekY.set(e.clientY - PEEK_H - 28);
+  };
 
   // ----- Collage "Beyond Work" (pin) -----
   const beyondRef = useRef(null);
@@ -226,59 +466,97 @@ export default function About() {
       <section ref={heroRef} className="relative w-full px-4 sm:px-6 md:px-10 lg:px-16 pt-36 md:pt-44 pb-24 md:pb-32 overflow-hidden">
         <div className="relative z-10">
 
-          {/* Declaración tipográfica: Montserrat grande, una palabra por span */}
-          <h1 className="mt-8 max-w-[62rem] font-medium tracking-tight text-[#1D212A] leading-[1.16] text-[clamp(1.4rem,3.4vw,2.6rem)]">
-            {introWords.map(({ word, className }, i) => (
+          {/* Nombre a gran escala: Montserrat extrabold en mayúsculas */}
+          <h1 className="w-full font-extrabold uppercase tracking-tight leading-[0.9] text-[#1D212A] text-[clamp(2.5rem,9vw,8rem)]">
+            {name.split(" ").map((word, i) => (
               <motion.span
-                key={word + i}
-                initial={{ opacity: 0, y: 22 }}
+                key={word}
+                initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 + i * 0.018, ease: [0.22, 1, 0.36, 1] }}
-                className={`inline-block mr-[0.26em] ${className ?? ""}`}
+                transition={{ duration: 0.8, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-block mr-[0.22em]"
               >
                 {word}
               </motion.span>
             ))}
           </h1>
 
-          <div className="mt-16 flex flex-col gap-12 md:flex-row md:items-end md:justify-between">
-            <div>
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-                className="flex items-center gap-2 text-[#385BF0]"
-              >
-                <MapPin size={16} />
-                <span className="text-sm sm:text-base font-medium">Based in Dominican Republic</span>
-              </motion.div>
+          <div className="mt-14 md:mt-20 flex flex-col gap-12 md:flex-row md:items-start md:gap-14 lg:gap-20">
+            <div className="md:w-[60%] lg:w-[62%]">
+              {/* Declaración: una palabra por span, resaltado con subrayado azul */}
+              <p className="font-medium tracking-tight text-[#1D212A] leading-[1.22] text-[clamp(1.15rem,2.1vw,1.9rem)]">
+                {introSegments.map((segment, si) => {
+                  const words = segment.words.map(({ word, order, endsSegment }) => (
+                    <motion.span
+                      key={order}
+                      initial={{ opacity: 0, y: 18 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.35 + order * 0.016, ease: [0.22, 1, 0.36, 1] }}
+                      className={[
+                        "inline-block",
+                        segment.highlight && !endsSegment ? "pr-[0.26em]" : "mr-[0.26em]",
+                        segment.highlight ? "border-b-[0.055em] border-[#385BF0]" : "",
+                        segment.bold ? "font-bold" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {word}
+                    </motion.span>
+                  ));
+
+                  if (!segment.peek) return <Fragment key={si}>{words}</Fragment>;
+
+                  // Envoltura inline (no inline-block): su caja abarca las dos
+                  // palabras y el espacio entre ellas, así el cursor no “sale”
+                  // al cruzar de una a otra y el preview no parpadea.
+                  return (
+                    <span
+                      key={si}
+                      className="cursor-help transition-colors duration-300 hover:text-[#385BF0]"
+                      onMouseEnter={() => setPeeking(true)}
+                      onMouseLeave={() => setPeeking(false)}
+                      onMouseMove={handlePeekMove}
+                    >
+                      {words}
+                    </span>
+                  );
+                })}
+              </p>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.15 }}
-                className="flex flex-wrap gap-3 mt-8"
+                transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-5"
               >
                 <a
-                  href="https://drive.google.com/file/d/1ny2v_X2izvE4IQ45Ik6O7woCbufpNrao/view?usp=sharing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group inline-flex items-center gap-2 text-sm font-semibold rounded-full px-6 py-2.5 border border-black/10 text-[#1D212A] transition-all duration-300 hover:border-[#385BF0] hover:text-[#385BF0]"
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="group inline-flex items-center gap-2.5 rounded-full bg-[#1D212A] px-6 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#385BF0]"
                 >
-                  <Download size={14} className="transition-transform group-hover:-translate-y-0.5" />
-                  Resume · ES
+                  Write a message
+                  <Send
+                    size={15}
+                    className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  />
                 </a>
-                <a
-                  href="https://drive.google.com/file/d/19NE9FX1L1lhBtvPdnyx8TgrKfgnyd06N/view?usp=sharing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group inline-flex items-center gap-2 text-sm font-semibold rounded-full px-6 py-2.5 border border-black/10 text-[#1D212A] transition-all duration-300 hover:border-[#385BF0] hover:text-[#385BF0]"
-                >
-                  <Download size={14} className="transition-transform group-hover:-translate-y-0.5" />
-                  Resume · EN
-                </a>
+
+                <ul className="flex flex-wrap items-center gap-x-7 gap-y-3">
+                  {socials.map(({ label, href, Icon }) => (
+                    <li key={label}>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-[#1D212A]/70 transition-colors duration-300 hover:text-[#385BF0]"
+                      >
+                        <Icon />
+                        {label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             </div>
 
@@ -286,98 +564,65 @@ export default function About() {
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.9, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              style={{ y: photoY, rotate: photoRotate }}
-              className="flex shrink-0 justify-center md:justify-end"
+              style={{ y: photoY }}
+              className="flex flex-1 justify-center [perspective:1100px] md:justify-end"
             >
-              <div className="bg-white p-3 border border-black/5 shadow-[0_20px_60px_rgba(0,0,0,0.14)] max-w-[240px] sm:max-w-[280px] transition-transform duration-500 hover:scale-105 hover:rotate-0">
-                <img
-                  src="/Me.webp"
-                  alt="Caroline Pérez"
-                  width={280}
-                  height={280}
-                  className="object-cover w-full h-auto"
-                  loading="lazy"
+              {/* El giro 3D vive aquí y no en el padre para no pelearse con el
+                  parallax de scroll. Las clases hover:scale/rotate de Tailwind
+                  no servirían: Framer escribe `transform` inline y las pisa. */}
+              <motion.div
+                onMouseMove={tilt.onMouseMove}
+                onMouseLeave={tilt.onMouseLeave}
+                style={{
+                  rotate: photoRotate,
+                  rotateX: tilt.rotateX,
+                  rotateY: tilt.rotateY,
+                  scale: tilt.scale,
+                  transformStyle: "preserve-3d",
+                }}
+                className="relative w-full max-w-[300px] border border-black/5 bg-white p-3 shadow-[0_20px_60px_rgba(0,0,0,0.14)] sm:max-w-[340px]"
+              >
+                {/* Marco de proporción fija + overflow-hidden: es lo que permite
+                    recortar. El zoom se ajusta con scale, y el origin lo centra
+                    en la cara en vez de en el medio de la foto. */}
+                <div className="aspect-[3/4] w-full overflow-hidden [transform:translateZ(35px)]">
+                  <img
+                    src="/Me.jpg"
+                    alt="Caroline Pérez"
+                    width={675}
+                    height={900}
+                    className="h-full w-full origin-[50%_36%] scale-[1.45] object-cover"
+                    loading="lazy"
+                  />
+                </div>
+
+                {/* Brillo que sigue al cursor, para vender la inclinación */}
+                <motion.div
+                  aria-hidden="true"
+                  style={{ opacity: tilt.glareOpacity, background: tilt.glare }}
+                  className="pointer-events-none absolute inset-3 mix-blend-soft-light"
                 />
-              </div>
+              </motion.div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ---------- Ticker band ---------- */}
-      <section className="relative w-full bg-[#0A0C16] py-6 sm:py-8 overflow-hidden">
-        <div aria-hidden="true" className="grain-overlay" />
-        <div className="relative z-10 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]">
-          <div
-            className="flex items-center w-max text-2xl sm:text-4xl md:text-5xl font-extrabold uppercase tracking-tight whitespace-nowrap animate-ticker"
-            style={{ animationDuration: "32s" }}
-          >
-            {Array(2)
-              .fill(["UX/UI Designer", "Frontend Developer", "3D Artist", "Swimmer", "Software Engineer"])
-              .flat()
-              .map((word, i) => (
-                <span key={i} className="flex items-center">
-                  <span className={i % 2 === 0 ? "text-[#708AFB] px-4 sm:px-6" : "text-outline text-white/70 px-4 sm:px-6"}>
-                    {word}
-                  </span>
-                  <span className="text-white/20 text-xl sm:text-2xl">✦</span>
-                </span>
-              ))}
-          </div>
-        </div>
-      </section>
 
       {/* ---------- Experience & Education ---------- */}
       <section className="relative w-full px-4 sm:px-6 md:px-10 lg:px-16 py-24 md:py-36">
-        <div>
-          <span className="text-xs sm:text-sm uppercase tracking-[0.3em] text-black/40 font-medium">
-            02 Experience
-          </span>
-          <h2 className="mt-3 font-display italic text-3xl sm:text-4xl md:text-5xl tracking-tight mb-14 md:mb-20">
-            Where I&rsquo;ve worked
-          </h2>
+        <EntryGroup
+          title="Experience"
+          lead="Between freelance work and product teams, I've spent the last years designing and shipping interfaces: web apps, blogs and brand sites. Most of it sits between design and frontend, which is where I like it."
+          entries={experience}
+        />
 
-          <div className="mb-24 md:mb-32">
-            {experience.map((job, i) => (
-              <RevealRow key={job.role + job.company} i={i}>
-                <div className="py-8 md:py-10 group">
-                  <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 justify-between">
-                    <h3 className="font-display text-2xl sm:text-3xl md:text-4xl tracking-tight text-[#1D212A] transition-colors duration-300 group-hover:text-[#385BF0]">
-                      {job.role}
-                    </h3>
-                    <span className="text-xs sm:text-sm text-black/40 whitespace-nowrap sm:pl-4">{job.date}</span>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-sm text-[#385BF0] font-medium mb-2">{job.company}</p>
-                    {job.desc && <p className="text-sm text-black/50 leading-relaxed max-w-2xl">{job.desc}</p>}
-                  </div>
-                </div>
-              </RevealRow>
-            ))}
-          </div>
+        <div className="mt-24 md:mt-36">
+          <EntryGroup title="Education" entries={education} />
+        </div>
 
-          <span className="text-xs sm:text-sm uppercase tracking-[0.3em] text-black/40 font-medium">
-            03 Education
-          </span>
-          <h2 className="mt-3 font-display italic text-3xl sm:text-4xl md:text-5xl tracking-tight mb-14 md:mb-20">
-            Where I&rsquo;ve learned
-          </h2>
-
-          <div>
-            {education.map((edu, i) => (
-              <RevealRow key={edu.title} i={i}>
-                <div className="py-8 md:py-10 group">
-                  <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 justify-between">
-                    <h3 className="font-display text-2xl sm:text-3xl md:text-4xl tracking-tight text-[#1D212A] transition-colors duration-300 group-hover:text-[#385BF0]">
-                      {edu.title}
-                    </h3>
-                    <span className="text-xs sm:text-sm text-black/40 whitespace-nowrap sm:pl-4">{edu.date}</span>
-                  </div>
-                  <p className="mt-3 text-sm text-[#385BF0] font-medium">{edu.school}</p>
-                </div>
-              </RevealRow>
-            ))}
-          </div>
+        <div className="mt-24 md:mt-36">
+          <EntryGroup title="Certifications" entries={certifications} />
         </div>
       </section>
 
@@ -434,6 +679,19 @@ export default function About() {
       </section>
 
       <CallToAction />
+
+      {/* Fuera del <section> del hero, que tiene overflow-hidden */}
+      {peekEnabled && (
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none fixed top-0 left-0 z-40 overflow-hidden rounded-2xl shadow-2xl"
+          style={{ x: peekSpringX, y: peekSpringY, width: PEEK_W, height: PEEK_H }}
+          animate={{ opacity: peeking ? 1 : 0, scale: peeking ? 1 : 0.85 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src={PEEK_IMAGE} alt="" className="h-full w-full object-cover" />
+        </motion.div>
+      )}
     </div>
   );
 }
