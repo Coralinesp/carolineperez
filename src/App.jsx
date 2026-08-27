@@ -66,14 +66,19 @@ function App() {
               </div>
             )}
             {/* Parche sobre la marca de agua de Spline.
-                El borde izquierdo estaba en 30% y la insignia arranca antes:
-                asomaba su esquina. Va todo en unidades relativas —incluido el
-                alto, que antes eran 112/128 px fijos— porque la insignia escala
-                con el lienzo, que es la mitad del ancho de la ventana. En px se
-                quedaba corta en pantallas grandes.
-                Los límites son estrechos: a la izquierda está el poste y por
-                debajo el cartel de WORK, así que no da para engordarlo a ojo. */}
-            <div className="hidden md:block absolute top-0 left-[25%] w-[29%] h-[9vw] bg-[#f8f8f6] z-20 pointer-events-none" />
+                Todo va en unidades relativas porque la insignia escala con el
+                lienzo, que es la mitad del ancho de la ventana; en px se queda
+                corto en pantallas grandes.
+                La esquina de abajo a la izquierda va cortada en diagonal: la
+                insignia se apoya justo encima del cartel de WORK, que está
+                inclinado, así que una caja recta lo bastante ancha para taparla
+                entera se comía la punta del cartel. El corte es paralelo a su
+                borde superior, así que el parche puede llegar a la izquierda sin
+                bajar nunca por debajo de él. */}
+            <div
+              style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 18% 100%, 0 82%)" }}
+              className="hidden md:block absolute top-0 left-[25%] w-[29%] h-[9vw] bg-[#f8f8f6] z-20 pointer-events-none"
+            />
             {/* Columna Derecha: Nombre y Título */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
