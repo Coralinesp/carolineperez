@@ -7,8 +7,11 @@ export default function CustomCursor() {
 
   const cursorX = useMotionValue(-100);
   const cursorY = useMotionValue(-100);
-  const springX = useSpring(cursorX, { damping: 26, stiffness: 320, mass: 0.4 });
-  const springY = useSpring(cursorY, { damping: 26, stiffness: 320, mass: 0.4 });
+  // Criticamente amortiguado (damping = 2*sqrt(k*m)) y con el triple de
+  // frecuencia que antes: el punto sigue teniendo algo de arrastre, que es la
+  // gracia, pero sin quedarse atras del puntero real.
+  const springX = useSpring(cursorX, { damping: 30, stiffness: 900, mass: 0.25 });
+  const springY = useSpring(cursorY, { damping: 30, stiffness: 900, mass: 0.25 });
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: fine) and (min-width: 768px)");

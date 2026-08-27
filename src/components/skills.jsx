@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Matter from "matter-js";
+import useNearViewport from "../hooks/useNearViewport";
 
 /**
  * Colores vivos calibrados para el fondo claro #f8f8f6: nada demasiado pálido,
@@ -209,11 +210,26 @@ export default function TechnicalArsenal() {
     };
   }, []);
 
+  // La escena no se monta hasta tener la sección cerca: crear el motor, medir
+  // las quince píldoras y armar los cuerpos es trabajo síncrono, y al entrar
+  // por /#work caía en el mismo commit que todo lo demás. El hueco queda
+  // reservado con el mismo alto, para que el salto al ancla no se desvíe.
+  const sectionRef = useRef(null);
+  const near = useNearViewport(sectionRef, "400px");
+
   // Sin encabezado ni relleno superior: continúa el fondo claro del Statement
   // y las píldoras entran desde arriba, como si cayeran desde ese texto.
   return (
-    <section aria-label="Technologies" className="relative w-full overflow-hidden bg-[#f8f8f6] pb-24 md:pb-32">
-      <FallingPills key={sceneKey} />
+    <section
+      ref={sectionRef}
+      aria-label="Technologies"
+      className="relative w-full overflow-hidden bg-[#f8f8f6] pb-24 md:pb-32"
+    >
+      {near ? (
+        <FallingPills key={sceneKey} />
+      ) : (
+        <div className="h-[340px] w-full md:h-[360px]" aria-hidden="true" />
+      )}
     </section>
   );
 }

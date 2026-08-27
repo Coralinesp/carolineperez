@@ -12,7 +12,12 @@ export default function SmoothScroll({ children }) {
 
   useEffect(() => {
     const lenis = new Lenis({
-      duration: 1.2,
+      // 1.2 era el valor por defecto de Lenis y dejaba una cola larga: con este
+      // easing el 97% del recorrido se cubre en la primera mitad, asi que el
+      // resto del tiempo la pagina se sigue moviendo de forma casi imperceptible
+      // y la rueda se siente con retraso. Ademas todo lo que cuelga del scroll
+      // (el anclaje del showcase, el viaje de la tarjeta) va atado a esa cola.
+      duration: 0.7,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       wheelMultiplier: 1,

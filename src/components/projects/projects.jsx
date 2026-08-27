@@ -1,6 +1,18 @@
 // components/data/projects.js
 const projects = [
   {
+    id: 24,
+    title: "AI ADMINISTRATIVE ASSISTANT",
+    description: "AI-powered assistant designed to streamline administrative workflows, automate repetitive tasks, and enhance productivity. The interface organises the day around a single workspace: chat, captured ideas, tasks, calendar and saved items in one rail, with work grouped into projects so context is never lost between them.",
+    tags: ["UX/UI"],
+    role: "Product Designer",
+    industry: "Productivity & AI",
+    toolkit: "Figma",
+    color: "#2F6BFF",
+    cover: "/eli.png",
+    link: null
+  },
+  {
     id: 1,
     title: "DESIGN A FOOD DELIVERY APP FOR A CAFE",
     description: "UX case study focused on accessibility. This app is designed for a local café, allowing customers to browse drinks and pastry options, customize their coffee orders, and choose between in-store pickup or home delivery. The design prioritizes clarity, ease of use, and inclusivity for all users.",
@@ -41,12 +53,28 @@ const projects = [
     title: "POS SYSTEM (NDA REDACTED)",
     description: "Designed a comprehensive Point of Sale (POS) system from the ground up, focusing on scalability for retail and apparel industries. The project involved creating a complex architecture for inventory management with multi-variant support (SKU, stock, and dynamic pricing). Due to privacy and NDA constraints, the presentation focuses on the modular Design System and user flows developed to optimize checkout speed and administrative control.",
     tags: ["UX/UI", "Product Design"],
+    // Manda en el destacado de su categoría. Sin esta marca, el showcase
+    // simplemente coge el primero de la lista.
+    featured: true,
     role: "Lead Product Designer",
     industry: "Retail & FinTech",
     toolkit: "Figma, Design Systems, User Flows",
     color: "#00D1FF",
     cover: "/POS.png",
     link: "/"
+  },
+  {
+    id: 23,
+    title: "DOMINÓ – ONLINE MULTIPLAYER GAME",
+    description: "Design and development of an online dominoes game for playing with friends straight from the browser. Covers the whole flow: creating a room with a shareable code and invite link, setting the number of players and the target score, a lobby that fills up as people join, an illustrated how-to-play section, and the match board itself. Currently in development.",
+    tags: ["UX/UI", "Frontend"],
+    role: "Product Designer & Frontend Developer",
+    industry: "Games & Entertainment",
+    toolkit: "Figma, React, Tailwind CSS",
+    color: "#1F6B3A",
+    cover: "/domino.png",
+    // En desarrollo: todavía no hay nada a lo que enlazar.
+    link: null
   },
   {
     id: 5,

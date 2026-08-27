@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { Link, useLocation } from "react-router-dom";
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Laptop } from 'lucide-react';
@@ -10,6 +10,8 @@ import CallToAction from './components/cierre';
 import AnimatedSplitText from './components/AnimatedSplitText';
 import Statement from './components/Statement';
 import { useLenis } from './components/SmoothScroll';
+import useMediaQuery from './hooks/useMediaQuery';
+import useNearViewport from './hooks/useNearViewport';
 // Import diferido: asi el runtime de Spline queda en su propio chunk y el
 // telefono, que nunca lo monta, tampoco lo descarga.
 const Spline = lazy(() => import('@splinetool/react-spline'));
@@ -19,19 +21,14 @@ function App() {
   const location = useLocation();
   const lenisRef = useLenis();
 
-  // La escena 3D solo se monta en desktop. El valor se lee ya en el
-  // inicializador y no en un efecto, para que el hero no parpadee entre el
-  // aviso y el modelo en el primer pintado.
-  const [isDesktop, setIsDesktop] = useState(
-    () => window.matchMedia('(min-width: 768px)').matches
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    const update = () => setIsDesktop(mq.matches);
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
+  // La escena 3D solo se monta en desktop...
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  // ...y solo cuando el hero esta cerca. Al entrar por /#work la pagina arranca
+  // desplazada hasta el showcase, con el hero muy por encima: sin esto se
+  // descargaba y se inicializaba el runtime de Spline (~973 kB y un contexto
+  // WebGL) durante el propio scroll de entrada, que es el tiron que se nota.
+  const heroRef = useRef(null);
+  const heroNear = useNearViewport(heroRef);
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.replace('#', '');
@@ -53,11 +50,11 @@ function App() {
         {/* Wrapper que acota el rango de "pin" del hero a solo Hero + Statement */}
         <div className="relative w-full">
           {/* Hero Section con 3D integrado */}
-          <section className="hero-section min-h-screen w-full sticky top-0 z-0 flex flex-col md:flex-row items-center justify-center md:justify-end px-4 pt-16 pb-8 sm:px-6 md:px-10 lg:px-16 overflow-hidden">
+          <section ref={heroRef} className="hero-section min-h-screen w-full sticky top-0 z-0 flex flex-col md:flex-row items-center justify-center md:justify-end px-4 pt-16 pb-8 sm:px-6 md:px-10 lg:px-16 overflow-hidden">
             {/* Columna Izquierda: Escena 3D Spline (full-bleed en desktop).
                 En movil no se monta: en vertical la escena queda recortada, se
                 come 60vh del hero y arrastra la marca de agua por encima. */}
-            {isDesktop && (
+            {isDesktop && heroNear && (
               <div className="w-full h-[60vh] md:h-auto relative md:absolute md:inset-y-0 md:left-0 md:w-1/2 z-10 flex items-center justify-center overflow-hidden">
                 <div className="w-full h-full scale-110 md:scale-125 translate-y-10 md:translate-y-20 origin-center">
                   <Suspense fallback={null}>
@@ -68,8 +65,15 @@ function App() {
                 </div>
               </div>
             )}
-            {/* Cuadrante decorativo sobre la marca de agua de Spline */}
-            <div className="hidden md:block absolute top-0 left-[30%] w-[24%] h-28 lg:h-32 bg-[#f8f8f6] z-20 pointer-events-none" />
+            {/* Parche sobre la marca de agua de Spline.
+                El borde izquierdo estaba en 30% y la insignia arranca antes:
+                asomaba su esquina. Va todo en unidades relativas —incluido el
+                alto, que antes eran 112/128 px fijos— porque la insignia escala
+                con el lienzo, que es la mitad del ancho de la ventana. En px se
+                quedaba corta en pantallas grandes.
+                Los límites son estrechos: a la izquierda está el poste y por
+                debajo el cartel de WORK, así que no da para engordarlo a ojo. */}
+            <div className="hidden md:block absolute top-0 left-[25%] w-[29%] h-[9vw] bg-[#f8f8f6] z-20 pointer-events-none" />
             {/* Columna Derecha: Nombre y Título */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}

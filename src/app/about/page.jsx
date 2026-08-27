@@ -5,6 +5,7 @@ import Navbar from '../../components/navbar';
 import CallToAction from '../../components/cierre';
 import { CONTACT_EMAIL, socialLinks } from '../../data/contact';
 import useTilt from '../../hooks/useTilt';
+import useMediaQuery from '../../hooks/useMediaQuery';
 
 
 /** Lucide no trae Behance, así que la marca va a mano. */
@@ -392,48 +393,14 @@ function CollageTile({ moment, progress, scale }) {
   );
 }
 
-export default function About() {
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  const heroRef = useRef(null);
-  const { scrollYProgress: heroProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
-  const photoY = useTransform(heroProgress, [0, 1], [0, 120]);
-
-  // Inclinación 3D de la foto al mover el mouse (mismo efecto que las tarjetas
-  // de Services).
-  const tilt = useTilt({ max: MAX_TILT });
-  const photoRotate = useTransform(heroProgress, [0, 1], [8, 2]);
-
-  // ----- Preview que asoma al pasar el cursor por "Dominican Republic" -----
-  const [peeking, setPeeking] = useState(false);
-  const [peekEnabled, setPeekEnabled] = useState(false);
-  const peekX = useMotionValue(0);
-  const peekY = useMotionValue(0);
-  const peekSpringX = useSpring(peekX, { damping: 30, stiffness: 250, mass: 0.5 });
-  const peekSpringY = useSpring(peekY, { damping: 30, stiffness: 250, mass: 0.5 });
-
-  // Sólo con puntero real: en táctil no hay hover y el preview quedaría colgado.
-  useEffect(() => {
-    const mq = window.matchMedia("(pointer: fine) and (min-width: 768px)");
-    const update = () => setPeekEnabled(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-
-  // El offset va en el propio valor y no con clases -translate-*: Framer escribe
-  // `transform` inline y pisaría cualquier translate de Tailwind.
-  const handlePeekMove = (e) => {
-    peekX.set(e.clientX - PEEK_W / 2);
-    peekY.set(e.clientY - PEEK_H - 28);
-  };
-
-  // ----- Collage "Beyond Work" (pin) -----
+/**
+ * Beyond Work en desktop: la sección se ancla, el título se queda quieto y sólo
+ * sube el lienzo de fotos. Todo el cálculo del recorrido vive aquí dentro para
+ * que en móvil no exista: `useViewport` escucha `resize`, y en un teléfono la
+ * barra de URL lo dispara al hacer scroll, así que estando en About re-renderizaba
+ * la página entera —fichas, logos y las 13 fotos— sin necesidad ninguna.
+ */
+function BeyondWorkPinned() {
   const beyondRef = useRef(null);
   const { vw, vh } = useViewport();
 
@@ -455,6 +422,103 @@ export default function About() {
     offset: ["start start", "end end"],
   });
   const canvasY = useTransform(collageProgress, [0, 1], [0, -travel]);
+
+  return (
+    <section
+      ref={beyondRef}
+      aria-label="Beyond work"
+      className="relative w-full bg-[#f8f8f6] text-[#1D212A]"
+      style={{ height: `${pinHeight}px` }}
+    >
+      <div className="sticky top-0 h-screen w-full overflow-hidden">
+        {/* Título fijo: nunca se mueve mientras dura el recorrido */}
+        <div className="pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center px-6">
+          <h2
+            style={{ fontSize: `${titleSize}px` }}
+            className="text-center font-extrabold uppercase leading-[0.85] tracking-tight text-[#1D212A]"
+          >
+            <span className="block">Beyond</span>
+            <span className="block">Work</span>
+          </h2>
+        </div>
+
+        {/* Lienzo: se desplaza hacia arriba hasta que pasan todas las imágenes */}
+        <motion.div
+          style={{ y: canvasY, height: `${canvasH}px` }}
+          className="absolute inset-x-0 top-0 z-10 mx-auto w-full max-w-[1440px] will-change-transform"
+        >
+          {moments.map((m) => (
+            <CollageTile key={m.src} moment={m} progress={collageProgress} scale={canvasScale} />
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/** Beyond Work en móvil: la misma serie, apilada y sin nada colgado del scroll. */
+function BeyondWorkList() {
+  return (
+    <section aria-label="Beyond work" className="px-4 sm:px-6 py-24">
+      <h2 className="mb-12 font-extrabold uppercase leading-[0.9] tracking-tight text-[#1D212A] text-5xl sm:text-6xl">
+        Beyond Work
+      </h2>
+      <ul className="flex flex-col items-center gap-8">
+        {moments.map((m) => (
+          <li key={m.src} className="w-full max-w-[22rem]">
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <MomentImage {...m} />
+            </motion.div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export default function About() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  const heroRef = useRef(null);
+  const { scrollYProgress: heroProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  const photoY = useTransform(heroProgress, [0, 1], [0, 120]);
+
+  // Inclinación 3D de la foto al mover el mouse (mismo efecto que las tarjetas
+  // de Services).
+  const tilt = useTilt({ max: MAX_TILT });
+  const photoRotate = useTransform(heroProgress, [0, 1], [8, 2]);
+
+  // ----- Preview que asoma al pasar el cursor por "Dominican Republic" -----
+  const [peeking, setPeeking] = useState(false);
+  // Sólo con puntero real: en táctil no hay hover y el preview quedaría colgado.
+  const peekEnabled = useMediaQuery("(pointer: fine) and (min-width: 768px)");
+  const peekX = useMotionValue(0);
+  const peekY = useMotionValue(0);
+  const peekSpringX = useSpring(peekX, { damping: 30, stiffness: 250, mass: 0.5 });
+  const peekSpringY = useSpring(peekY, { damping: 30, stiffness: 250, mass: 0.5 });
+
+  // El offset va en el propio valor y no con clases -translate-*: Framer escribe
+  // `transform` inline y pisaría cualquier translate de Tailwind.
+  const handlePeekMove = (e) => {
+    peekX.set(e.clientX - PEEK_W / 2);
+    peekY.set(e.clientY - PEEK_H - 28);
+  };
+
+  // El collage tiene dos versiones y sólo se monta la que toca. Con clases
+  // (`hidden md:block` / `md:hidden`) las dos vivían en el DOM: en el móvil se
+  // cargaban las 13 fotos por duplicado y, peor, los 13 tiles del lienzo
+  // seguían escribiendo su `y` en cada frame de scroll sin que nadie los viera.
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // Ojo: el wrapper usa overflow-x-clip y no overflow-x-hidden — este último
   // convierte el div en contenedor de scroll y rompe el `sticky` del collage.
@@ -626,57 +690,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ---------- Beyond Work — desktop: sección anclada, sólo suben las fotos ---------- */}
-      <section
-        ref={beyondRef}
-        aria-label="Beyond work"
-        className="relative hidden w-full bg-[#f8f8f6] text-[#1D212A] md:block"
-        style={{ height: `${pinHeight}px` }}
-      >
-        <div className="sticky top-0 h-screen w-full overflow-hidden">
-          {/* Título fijo: nunca se mueve mientras dura el recorrido */}
-          <div className="pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center px-6">
-            <h2
-              style={{ fontSize: `${titleSize}px` }}
-              className="text-center font-extrabold uppercase leading-[0.85] tracking-tight text-[#1D212A]"
-            >
-              <span className="block">Beyond</span>
-              <span className="block">Work</span>
-            </h2>
-          </div>
-
-          {/* Lienzo: se desplaza hacia arriba hasta que pasan todas las imágenes */}
-          <motion.div
-            style={{ y: canvasY, height: `${canvasH}px` }}
-            className="absolute inset-x-0 top-0 z-10 mx-auto w-full max-w-[1440px] will-change-transform"
-          >
-            {moments.map((m) => (
-              <CollageTile key={m.src} moment={m} progress={collageProgress} scale={canvasScale} />
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ---------- Beyond Work — mobile: lista apilada ---------- */}
-      <section aria-label="Beyond work" className="px-4 sm:px-6 py-24 md:hidden">
-        <h2 className="mb-12 font-extrabold uppercase leading-[0.9] tracking-tight text-[#1D212A] text-5xl sm:text-6xl">
-          Beyond Work
-        </h2>
-        <ul className="flex flex-col items-center gap-8">
-          {moments.map((m) => (
-            <li key={m.src} className="w-full max-w-[22rem]">
-              <motion.div
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <MomentImage {...m} />
-              </motion.div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {isDesktop ? <BeyondWorkPinned /> : <BeyondWorkList />}
 
       <CallToAction />
 
