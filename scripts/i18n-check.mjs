@@ -34,6 +34,14 @@ const DATA_FIELDS = {
   "src/components/navbar.jsx": ["label"],
 };
 
+// Props de JSX cuyo valor literal acaba pasando por t() dentro del componente.
+// No se ven como llamadas a t() en ningún sitio, así que sin esta lista pasan
+// desapercibidas: es lo que dejó "Experience", "Education" y "Certifications"
+// sin traducir hasta que alguien lo vio en pantalla.
+const JSX_PROPS = {
+  "src/app/about/page.jsx": ["title", "lead"],
+};
+
 // En el fuente los saltos van escapados; al importar el diccionario ya vienen
 // resueltos. Sin esto, "Beyond\nWork" nunca casaría consigo mismo.
 const resolveEscapes = (key) => key.split("\\n").join("\n");
@@ -59,6 +67,13 @@ for (const [path, fields] of Object.entries(DATA_FIELDS)) {
     for (const m of src.matchAll(joined)) {
       used.add([...m[1].matchAll(/"([^"]*)"/g)].map((q) => q[1]).join(""));
     }
+  }
+}
+
+for (const [path, props] of Object.entries(JSX_PROPS)) {
+  const src = readFileSync(path, "utf8");
+  for (const prop of props) {
+    for (const m of src.matchAll(new RegExp(`\\b${prop}="([^"]*)"`, "g"))) used.add(m[1]);
   }
 }
 

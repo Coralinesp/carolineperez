@@ -69,7 +69,7 @@ const INTRO = {
   ],
   es: [
     { text: "Ingeniera de software y diseñadora UX/UI", highlight: true },
-    { text: "afincada en" },
+    { text: "proveniente de" },
     { text: "República Dominicana,", peek: true },
     {
       text:
