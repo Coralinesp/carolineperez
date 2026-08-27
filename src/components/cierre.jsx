@@ -3,6 +3,17 @@ import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { CONTACT_EMAIL, socialLinks } from "../data/contact";
+import { useI18n } from "../i18n/LanguageContext";
+
+/**
+ * El titular lleva una palabra subrayada en medio, y en español no cae en el
+ * mismo sitio de la frase: en inglés va después de "Let's" y en español abre.
+ * Por eso se parte en tres piezas por idioma en vez de traducirlo entero.
+ */
+const HEADING = {
+  en: { before: "Let’s ", highlight: "talk", after: " about your project" },
+  es: { before: "", highlight: "Hablemos", after: " de tu proyecto" },
+};
 
 /**
  * Cierre en claro, no en oscuro como antes: el resto de la página es #f8f8f6 y
@@ -11,6 +22,8 @@ import { CONTACT_EMAIL, socialLinks } from "../data/contact";
  * palabra subrayada en azul.
  */
 export default function CallToAction() {
+  const { t, lang } = useI18n();
+  const heading = HEADING[lang] ?? HEADING.en;
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
@@ -41,11 +54,11 @@ export default function CallToAction() {
           {...rise()}
           className="max-w-[16ch] font-extrabold uppercase leading-[0.92] tracking-tight text-[#1D212A] text-[clamp(2.25rem,7vw,6rem)]"
         >
-          Let&rsquo;s{" "}
+          {heading.before}
           <span className="underline decoration-[#385BF0] decoration-[0.09em] underline-offset-[0.1em]">
-            talk
-          </span>{" "}
-          about your project
+            {heading.highlight}
+          </span>
+          {heading.after}
         </motion.h2>
       </div>
 
@@ -53,7 +66,7 @@ export default function CallToAction() {
         {...rise(0.12)}
         className="mx-auto mt-8 max-w-md text-base leading-relaxed text-black/45 sm:text-lg"
       >
-        Available for new roles and collaborations. Write me and let&rsquo;s see where it goes.
+        {t("Available for new roles and collaborations. Write me and let’s see where it goes.")}
       </motion.p>
 
       <motion.a

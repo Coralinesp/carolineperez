@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useLenis } from "./SmoothScroll";
+import { useI18n } from "../i18n/LanguageContext";
 
 /** Alto del navbar fijo más un poco de aire, para que el título no quede debajo. */
 const NAV_OFFSET = -110;
@@ -17,6 +18,7 @@ const NAV_OFFSET = -110;
  * así que al desplazarse a mano el índice se quedaba congelado.
  */
 export default function CaseStudyNav({ sections, className = "" }) {
+  const { t } = useI18n();
   const [active, setActive] = useState(sections[0]?.id);
   const lenisRef = useLenis();
 
@@ -52,7 +54,7 @@ export default function CaseStudyNav({ sections, className = "" }) {
 
   return (
     <nav
-      aria-label="Secciones del caso"
+      aria-label={t("Case sections")}
       className={`md:w-1/4 w-full self-start md:sticky md:top-32 ${className}`}
     >
       <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium md:flex-col md:gap-4">
@@ -74,7 +76,7 @@ export default function CaseStudyNav({ sections, className = "" }) {
                     isActive ? "w-6 bg-[#385BF0]" : "w-0 bg-transparent"
                   }`}
                 />
-                {section.label}
+                {t(section.label)}
               </a>
             </li>
           );

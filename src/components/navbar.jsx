@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useI18n();
 
   const menuItems = [
     { label: 'Work', href: '/#work' },
@@ -23,7 +25,7 @@ export default function Navbar() {
           <div className="hidden md:flex gap-10 font-medium uppercase tracking-tight text-sm md:text-base">
             {menuItems.map(({ label, href }) => (
               <Link key={label} to={href} onClick={() => setIsOpen(false)} className="cursor-pointer">
-                {label}
+                {t(label)}
               </Link>
             ))}
           </div>
@@ -59,7 +61,7 @@ export default function Navbar() {
               onClick={() => setIsOpen(false)}
               className="font-medium uppercase tracking-tight text-sm cursor-pointer transition-colors duration-300 hover:text-[#385BF0]"
             >
-              {label}
+              {t(label)}
             </Link>
           ))}
         </div>

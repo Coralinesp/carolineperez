@@ -1,26 +1,55 @@
 import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView, useScroll, useTransform } from "framer-motion";
-
-const rawText =
-  "Some people choose between design and engineering. I never wanted to. I love turning ideas into experiences, combining technical thinking with creativity to build products that are intuitive, functional, and full of personality.";
-
-const highlightWords = ["design", "engineering", "experiences", "personality"];
+import { useI18n } from "../i18n/LanguageContext";
 
 /**
- * Sticker que asoma al pasar el cursor, indexado por palabra ya normalizada.
- * `width` va en em para acompañar al clamp del texto. `place: "above"` es para
- * palabras que no cierran la frase: a la derecha taparían lo que viene después.
+ * Sticker que asoma al pasar el cursor. `width` va en em para acompañar al
+ * clamp del texto. `place: "above"` es para las palabras que no cierran la
+ * frase: a la derecha taparían lo que viene después.
  */
-const stickers = {
-  design: { src: "/stickers/ok.png", width: 1.7, place: "above", offset: 0.35, tilt: -8 },
-  engineering: { src: "/stickers/coffee.png", width: 3.6, place: "above", offset: 0.55 },
-  experiences: { src: "/stickers/flower.png", width: 1.9, spin: true },
-  personality: { src: "/stickers/eye.png", width: 1.9, tilt: -10 },
+const STICKERS = {
+  ok: { src: "/stickers/ok.png", width: 1.7, place: "above", offset: 0.35, tilt: -8 },
+  coffee: { src: "/stickers/coffee.png", width: 3.6, place: "above", offset: 0.55 },
+  flower: { src: "/stickers/flower.png", width: 1.9, spin: true },
+  eye: { src: "/stickers/eye.png", width: 1.9, tilt: -10 },
+};
+
+/**
+ * Este párrafo no puede pasar por el diccionario como una frase suelta: se
+ * parte en palabras, y cuatro de ellas van subrayadas y llevan sticker. Los
+ * stickers se indexan por la palabra, que cambia con el idioma, así que cada
+ * idioma trae su texto y su propio mapa palabra → sticker.
+ *
+ * Las palabras del mapa son exactamente las que van subrayadas, en los dos
+ * idiomas; no hace falta una lista aparte.
+ */
+const CONTENT = {
+  en: {
+    text:
+      "Some people choose between design and engineering. I never wanted to. I love turning ideas into experiences, combining technical thinking with creativity to build products that are intuitive, functional, and full of personality.",
+    words: {
+      design: "ok",
+      engineering: "coffee",
+      experiences: "flower",
+      personality: "eye",
+    },
+  },
+  es: {
+    text:
+      "Hay quien elige entre diseño e ingeniería. Yo nunca quise. Me encanta convertir ideas en experiencias, combinando el pensamiento técnico con la creatividad para construir productos intuitivos, funcionales y llenos de personalidad.",
+    words: {
+      "diseño": "ok",
+      "ingeniería": "coffee",
+      experiencias: "flower",
+      personalidad: "eye",
+    },
+  },
 };
 
 const cleanWord = (word) => word.replace(/[.,]/g, "").toLowerCase();
 
 export default function Statement() {
+  const { lang } = useI18n();
   const containerRef = useRef(null);
   const isInView = useInView(containerRef, { once: true, amount: 0.35 });
 
@@ -34,19 +63,21 @@ export default function Statement() {
 
   const [peeking, setPeeking] = useState(null);
 
-  const words = useMemo(
-    () =>
-      rawText.split(" ").map((word, i) => {
-        const key = cleanWord(word);
-        return {
-          id: i,
-          text: word,
-          highlight: highlightWords.includes(key),
-          sticker: stickers[key] ?? null,
-        };
-      }),
-    []
-  );
+  const words = useMemo(() => {
+    const { text, words: marked } = CONTENT[lang] ?? CONTENT.en;
+    return text.split(" ").map((word, i) => {
+      const sticker = marked[cleanWord(word)];
+      return {
+        // La `key` lleva el idioma: al cambiarlo se remonta cada palabra y la
+        // entrada escalonada se reproduce entera, en vez de quedarse a medias
+        // con los nodos que React habría reutilizado.
+        id: `${lang}-${i}`,
+        text: word,
+        highlight: Boolean(sticker),
+        sticker: sticker ? STICKERS[sticker] : null,
+      };
+    });
+  }, [lang]);
 
   return (
     <section

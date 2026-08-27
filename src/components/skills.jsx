@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 import useNearViewport from "../hooks/useNearViewport";
+import { useI18n } from "../i18n/LanguageContext";
 
 /**
  * Colores vivos calibrados para el fondo claro #f8f8f6: nada demasiado pálido,
@@ -193,6 +194,7 @@ function FallingPills() {
 }
 
 export default function TechnicalArsenal() {
+  const { t } = useI18n();
   const [sceneKey, setSceneKey] = useState(0);
 
   // El ancho del contenedor define paredes y posiciones de salida, así que al
@@ -222,7 +224,7 @@ export default function TechnicalArsenal() {
   return (
     <section
       ref={sectionRef}
-      aria-label="Technologies"
+      aria-label={t("Technologies")}
       className="relative w-full overflow-hidden bg-[#f8f8f6] pb-24 md:pb-32"
     >
       {near ? (

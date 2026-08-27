@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion';
 import { Instagram, Linkedin, Send } from 'lucide-react';
 import Navbar from '../../components/navbar';
@@ -6,6 +6,7 @@ import CallToAction from '../../components/cierre';
 import { CONTACT_EMAIL, socialLinks } from '../../data/contact';
 import useTilt from '../../hooks/useTilt';
 import useMediaQuery from '../../hooks/useMediaQuery';
+import { useI18n } from '../../i18n/LanguageContext';
 
 
 /** Lucide no trae Behance, así que la marca va a mano. */
@@ -47,18 +48,37 @@ const PEEK_H = 280;
 /** Grados máximos de inclinación de la foto en cada eje. */
 const MAX_TILT = 15;
 
-const intro = [
-  { text: "A" },
-  { text: "software engineer and UX/UI designer", highlight: true },
-  { text: "based in the" },
-  { text: "Dominican Republic,", peek: true },
-  {
-    text:
-      "building the interfaces I design. " +
-      "With a background in 3D and electronics, and a keen eye for detail. " +
-      "Focused on crafting simple, accessible products that go from research to production.",
-  },
-];
+/**
+ * La intro no pasa por el diccionario como una frase: va partida en tramos
+ * porque uno lleva subrayado y otro dispara la foto que asoma al pasar el
+ * cursor, y esos tramos no caen en el mismo sitio en los dos idiomas — en
+ * inglés la frase abre con un artículo suelto y en español no.
+ */
+const INTRO = {
+  en: [
+    { text: "A" },
+    { text: "software engineer and UX/UI designer", highlight: true },
+    { text: "based in the" },
+    { text: "Dominican Republic,", peek: true },
+    {
+      text:
+        "building the interfaces I design. " +
+        "With a background in 3D and electronics, and a keen eye for detail. " +
+        "Focused on crafting simple, accessible products that go from research to production.",
+    },
+  ],
+  es: [
+    { text: "Ingeniera de software y diseñadora UX/UI", highlight: true },
+    { text: "afincada en" },
+    { text: "República Dominicana,", peek: true },
+    {
+      text:
+        "que construye las interfaces que diseña. " +
+        "Con formación en 3D y electrónica, y buen ojo para el detalle. " +
+        "Centrada en crear productos simples y accesibles que van de la investigación a producción.",
+    },
+  ],
+};
 
 /**
  * Cada palabra va en su propio inline-block para poder animarla y que el
@@ -69,9 +89,9 @@ const intro = [
  * padding (dentro del borde) y la última con margin (para que el trazo corte
  * justo al terminar la frase).
  */
-const introSegments = (() => {
+const buildIntro = (segments) => {
   let order = 0;
-  return intro.map((segment) => {
+  return segments.map((segment) => {
     const words = segment.text.split(" ");
     return {
       ...segment,
@@ -82,7 +102,7 @@ const introSegments = (() => {
       })),
     };
   });
-})();
+};
 
 /**
  * `logo` es opcional: si hay un archivo en public/logos/ se usa; si no, la
@@ -250,6 +270,7 @@ const moments = [
 ];
 
 function EntryCard({ entry, i }) {
+  const { t } = useI18n();
   const { name, role, date, desc, stack, mark, logo, logoFill, current } = entry;
 
   return (
@@ -293,18 +314,19 @@ function EntryCard({ entry, i }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
             <h3 className="text-base font-bold tracking-tight text-[#1D212A] sm:text-lg">{name}</h3>
-            <span className="shrink-0 text-xs text-black/40 sm:text-sm">{date}</span>
+            {/* El nombre de la empresa no se traduce; el puesto y la fecha sí. */}
+            <span className="shrink-0 text-xs text-black/40 sm:text-sm">{t(date)}</span>
           </div>
-          <p className="mt-0.5 text-sm text-black/45 sm:text-base">{role}</p>
+          <p className="mt-0.5 text-sm text-black/45 sm:text-base">{t(role)}</p>
         </div>
       </div>
 
       {(desc || stack) && (
         <div className="mt-4 sm:ml-[7.25rem]">
-          {desc && <p className="text-sm leading-relaxed text-black/45">{desc}</p>}
+          {desc && <p className="text-sm leading-relaxed text-black/45">{t(desc)}</p>}
           {stack && (
             <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-[#385BF0]">
-              {stack}
+              {t(stack)}
             </p>
           )}
         </div>
@@ -315,6 +337,7 @@ function EntryCard({ entry, i }) {
 
 /** Columna de título fija + lista de fichas al lado. */
 function EntryGroup({ title, lead, entries }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col gap-10 lg:flex-row lg:gap-16 xl:gap-24">
       {/* El tamaño del título está atado al ancho de esta columna: "CERTIFICATIONS"
@@ -322,9 +345,9 @@ function EntryGroup({ title, lead, entries }) {
           clamp más grande se salía encima de las fichas. */}
       <div className="lg:sticky lg:top-28 lg:h-fit lg:w-[34%] lg:self-start">
         <h2 className="font-extrabold uppercase tracking-tight leading-[0.95] text-[#1D212A] text-[clamp(2rem,3vw,3rem)]">
-          {title}
+          {t(title)}
         </h2>
-        {lead && <p className="mt-6 max-w-md text-sm leading-relaxed text-black/45 sm:text-base">{lead}</p>}
+        {lead && <p className="mt-6 max-w-md text-sm leading-relaxed text-black/45 sm:text-base">{t(lead)}</p>}
       </div>
 
       <ul className="flex flex-1 flex-col gap-3">
@@ -356,12 +379,13 @@ function useViewport() {
 }
 
 function MomentImage({ src, alt, ratio, className = "" }) {
+  const { t } = useI18n();
   return (
     <div
       style={{ aspectRatio: ratio }}
       className={`w-full overflow-hidden rounded-md border border-black/5 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.18)] ${className}`}
     >
-      <img src={src} alt={alt} className="h-full w-full object-cover" loading="lazy" />
+      <img src={src} alt={t(alt)} className="h-full w-full object-cover" loading="lazy" />
     </div>
   );
 }
@@ -401,6 +425,7 @@ function CollageTile({ moment, progress, scale }) {
  * la página entera —fichas, logos y las 13 fotos— sin necesidad ninguna.
  */
 function BeyondWorkPinned() {
+  const { t } = useI18n();
   const beyondRef = useRef(null);
   const { vw, vh } = useViewport();
 
@@ -437,8 +462,16 @@ function BeyondWorkPinned() {
             style={{ fontSize: `${titleSize}px` }}
             className="text-center font-extrabold uppercase leading-[0.85] tracking-tight text-[#1D212A]"
           >
-            <span className="block">Beyond</span>
-            <span className="block">Work</span>
+            {/* Los saltos van en la propia cadena y no partiendo por espacios:
+                el titular ocupa dos líneas por diseño, y en español son cuatro
+                palabras que habría que repartir a mano de todos modos. */}
+            {t("Beyond\nWork")
+              .split("\n")
+              .map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
           </h2>
         </div>
 
@@ -458,10 +491,11 @@ function BeyondWorkPinned() {
 
 /** Beyond Work en móvil: la misma serie, apilada y sin nada colgado del scroll. */
 function BeyondWorkList() {
+  const { t } = useI18n();
   return (
     <section aria-label="Beyond work" className="px-4 sm:px-6 py-24">
       <h2 className="mb-12 font-extrabold uppercase leading-[0.9] tracking-tight text-[#1D212A] text-5xl sm:text-6xl">
-        Beyond Work
+        {t("Beyond Work")}
       </h2>
       <ul className="flex flex-col items-center gap-8">
         {moments.map((m) => (
@@ -482,6 +516,9 @@ function BeyondWorkList() {
 }
 
 export default function About() {
+  const { t, lang } = useI18n();
+  const introSegments = useMemo(() => buildIntro(INTRO[lang] ?? INTRO.en), [lang]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -599,7 +636,7 @@ export default function About() {
                   href={`mailto:${CONTACT_EMAIL}`}
                   className="group inline-flex items-center gap-2.5 rounded-full bg-[#1D212A] px-6 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#385BF0]"
                 >
-                  Write a message
+                  {t("Write a message")}
                   <Send
                     size={15}
                     className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -652,7 +689,7 @@ export default function About() {
                 <div className="aspect-[3/4] w-full overflow-hidden [transform:translateZ(35px)]">
                   <img
                     src="/Me.jpg"
-                    alt="Caroline Pérez"
+                    alt={name}
                     width={675}
                     height={900}
                     className="h-full w-full origin-[50%_36%] scale-[1.45] object-cover"
@@ -678,6 +715,7 @@ export default function About() {
         <EntryGroup
           title="Experience"
           lead="Between freelance work and product teams, I've spent the last years designing and shipping interfaces: web apps, blogs and brand sites. Most of it sits between design and frontend, which is where I like it."
+
           entries={experience}
         />
 

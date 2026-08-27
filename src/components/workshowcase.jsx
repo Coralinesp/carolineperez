@@ -12,6 +12,7 @@ import { Link, useNavigate } from "react-router-dom";
 import projects from "./projects/projects";
 import useTilt from "../hooks/useTilt";
 import { useLenis } from "./SmoothScroll";
+import { useI18n } from "../i18n/LanguageContext";
 
 export const services = [
   { alt: "UX/UI Design", image: "/uxui.jpg", category: "UX/UI" },
@@ -58,6 +59,7 @@ function offsetWithin(el, ancestor) {
 }
 
 function ServiceTile({ service, isSelected, onSelect, hidden }) {
+  const { t } = useI18n();
   const tilt = useTilt({ max: 12, hoverScale: 1.03, glareColor: "rgba(255,255,255,0.5)" });
 
   return (
@@ -66,7 +68,7 @@ function ServiceTile({ service, isSelected, onSelect, hidden }) {
       onClick={() => onSelect(service.category)}
       onMouseMove={tilt.onMouseMove}
       onMouseLeave={tilt.onMouseLeave}
-      aria-label={`Ver proyectos de ${service.alt}`}
+      aria-label={`${t("See projects")}: ${t(service.alt)}`}
       style={{
         rotateX: tilt.rotateX,
         rotateY: tilt.rotateY,
@@ -80,7 +82,7 @@ function ServiceTile({ service, isSelected, onSelect, hidden }) {
     >
       <img
         src={service.image}
-        alt={service.alt}
+        alt={t(service.alt)}
         style={{ aspectRatio: "1240 / 1748" }}
         className="block w-full object-cover"
         loading="lazy"
@@ -107,6 +109,7 @@ function ServiceTile({ service, isSelected, onSelect, hidden }) {
  * son seis muelles, así que el hover se resuelve con transiciones de CSS.
  */
 function ProjectTile({ project }) {
+  const { t } = useI18n();
   const linked = hasCase(project);
   const external = project.link?.startsWith("http");
 
@@ -117,7 +120,7 @@ function ProjectTile({ project }) {
     >
       <img
         src={project.cover}
-        alt={project.title}
+        alt={t(project.title)}
         loading="lazy"
         decoding="async"
         // El zoom sólo en las que llevan a alguna parte: en las demás sería
@@ -129,11 +132,11 @@ function ProjectTile({ project }) {
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-3 bg-gradient-to-t from-[#1D212A]/95 via-[#1D212A]/75 to-transparent px-5 pb-5 pt-14 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
         <h4 className="flex items-start gap-2 font-extrabold uppercase leading-[1.15] tracking-tight text-white text-sm sm:text-base">
-          <span className="min-w-0">{project.title}</span>
+          <span className="min-w-0">{t(project.title)}</span>
           {linked && <ArrowUpRight size={16} className="mt-0.5 shrink-0" />}
         </h4>
         <p className="mt-2 line-clamp-2 text-[11px] uppercase leading-relaxed tracking-widest text-white/55">
-          {[project.industry, project.toolkit].filter(Boolean).join(" · ")}
+          {[project.industry, project.toolkit].filter(Boolean).map(t).join(" · ")}
         </p>
       </div>
     </div>
@@ -168,6 +171,7 @@ function ProjectTile({ project }) {
 }
 
 export default function WorkShowcase() {
+  const { t } = useI18n();
   const [selected, setSelected] = useState("UX/UI");
 
   const rootRef = useRef(null);
@@ -292,10 +296,10 @@ export default function WorkShowcase() {
   return (
     <section ref={rootRef} className="relative w-full px-4 sm:px-6 md:px-10 lg:px-16">
       <h2 className="text-center font-extrabold uppercase leading-[0.95] tracking-tight text-[#1D212A] text-[clamp(1.9rem,4.6vw,4rem)]">
-        What can I do for you?
+        {t("What can I do for you?")}
       </h2>
       <p className="mx-auto mt-5 mb-12 max-w-md text-center text-sm text-black/45 sm:text-base md:mb-16">
-        Pick one to see the projects behind it.
+        {t("Pick one to see the projects behind it.")}
       </p>
 
       <ul className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
@@ -327,10 +331,10 @@ export default function WorkShowcase() {
             {/* Izquierda: título del destacado */}
             <motion.div style={{ opacity: featuredOpacity }} className="lg:text-right">
               <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#385BF0]">
-                Featured
+                {t("Featured")}
               </p>
               <h3 className="font-extrabold uppercase leading-[1.02] tracking-tight text-[#1D212A] text-[clamp(1.5rem,3vw,2.75rem)]">
-                {featured.title}
+                {t(featured.title)}
               </h3>
             </motion.div>
 
@@ -350,7 +354,7 @@ export default function WorkShowcase() {
                     setShowCursor(false);
                     tilt.onMouseLeave();
                   }}
-                  aria-label={canOpen ? `Ver ${featured.title}` : undefined}
+                  aria-label={canOpen ? `${t("View")} ${t(featured.title)}` : undefined}
                   aria-hidden={!canOpen}
                   tabIndex={canOpen ? 0 : -1}
                   style={{ rotateX: tilt.rotateX, rotateY: tilt.rotateY, scale: tilt.scale }}
@@ -377,10 +381,10 @@ export default function WorkShowcase() {
             {/* Derecha: descripción y llamada a la acción */}
             <motion.div style={{ opacity: featuredOpacity }} className="lg:pl-2">
               <p className="line-clamp-5 text-sm leading-relaxed text-black/50 sm:text-base">
-                {featured.description}
+                {t(featured.description)}
               </p>
               <p className="mt-4 text-xs uppercase tracking-widest text-black/35">
-                {[featured.industry, featured.toolkit].filter(Boolean).join(" · ")}
+                {[featured.industry, featured.toolkit].filter(Boolean).map(t).join(" · ")}
               </p>
               {canOpen && (
                 <button
@@ -388,7 +392,7 @@ export default function WorkShowcase() {
                   onClick={openFeatured}
                   className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#1D212A] transition-colors duration-300 hover:text-[#385BF0]"
                 >
-                  {featured.link.startsWith("http") ? "Visitar sitio" : "View case study"}
+                  {featured.link.startsWith("http") ? t("Visit site") : t("View case study")}
                   <ArrowUpRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               )}
@@ -402,7 +406,7 @@ export default function WorkShowcase() {
         <div className="mt-20 md:mt-28">
           <div className="mb-8 flex items-baseline justify-between gap-4 border-t border-black/10 pt-6 md:mb-10">
             <h3 className="text-sm font-semibold uppercase tracking-widest text-black/45">
-              More in {selected}
+              {t("More in")} {t(selected)}
             </h3>
             <span className="text-sm font-bold text-[#1D212A]">
               {String(rest.length).padStart(2, "0")}

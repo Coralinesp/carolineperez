@@ -12,6 +12,8 @@ import Statement from './components/Statement';
 import { useLenis } from './components/SmoothScroll';
 import useMediaQuery from './hooks/useMediaQuery';
 import useNearViewport from './hooks/useNearViewport';
+import useBlockSceneZoom from './hooks/useBlockSceneZoom';
+import { useI18n } from './i18n/LanguageContext';
 // Import diferido: asi el runtime de Spline queda en su propio chunk y el
 // telefono, que nunca lo monta, tampoco lo descarga.
 const Spline = lazy(() => import('@splinetool/react-spline'));
@@ -20,6 +22,7 @@ function App() {
   const [showButton, setShowButton] = useState(false);
   const location = useLocation();
   const lenisRef = useLenis();
+  const { t } = useI18n();
 
   // La escena 3D solo se monta en desktop...
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -29,6 +32,14 @@ function App() {
   // WebGL) durante el propio scroll de entrada, que es el tiron que se nota.
   const heroRef = useRef(null);
   const heroNear = useNearViewport(heroRef);
+
+  // El pinch del trackpad se cuela aunque el zoom este desactivado en la escena:
+  // no lo maneja la camara de Spline, lo manda el navegador. Se filtra sobre el
+  // contenedor, sin tocar los eventos de puntero de los que viven las
+  // interacciones de los carteles.
+  const sceneRef = useRef(null);
+  const sceneMounted = isDesktop && heroNear;
+  useBlockSceneZoom(sceneRef, sceneMounted);
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.replace('#', '');
@@ -54,8 +65,11 @@ function App() {
             {/* Columna Izquierda: Escena 3D Spline (full-bleed en desktop).
                 En movil no se monta: en vertical la escena queda recortada, se
                 come 60vh del hero y arrastra la marca de agua por encima. */}
-            {isDesktop && heroNear && (
-              <div className="w-full h-[60vh] md:h-auto relative md:absolute md:inset-y-0 md:left-0 md:w-1/2 z-10 flex items-center justify-center overflow-hidden">
+            {sceneMounted && (
+              <div
+                ref={sceneRef}
+                className="w-full h-[60vh] md:h-auto relative md:absolute md:inset-y-0 md:left-0 md:w-1/2 z-10 flex items-center justify-center overflow-hidden"
+              >
                 <div className="w-full h-full scale-110 md:scale-125 translate-y-10 md:translate-y-20 origin-center">
                   <Suspense fallback={null}>
                     <Spline
@@ -87,7 +101,7 @@ function App() {
               className="hero-copy text-right w-full md:w-1/2 md:ml-auto z-20 pointer-events-none mt-8 md:mt-0"
             >
               <p className="hero-kicker text-indigo-400 font-medium tracking-widest uppercase mb-2">
-                Software Engineer
+                {t('Software Engineer')}
               </p>
               <h1 className="hero-title text-5xl md:text-7xl font-extrabold tracking-tight">
                 Caroline Pérez
@@ -97,7 +111,7 @@ function App() {
               {!isDesktop && (
                 <p className="mt-8 flex items-center justify-end gap-2 text-xs font-normal normal-case tracking-normal text-black/35">
                   <Laptop size={14} className="shrink-0" aria-hidden="true" />
-                  There&rsquo;s a 3D scene here &mdash; best viewed on a laptop.
+                  {t("There's a 3D scene here — best viewed on a laptop.")}
                 </p>
               )}
             </motion.div>
