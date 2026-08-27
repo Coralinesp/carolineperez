@@ -26,6 +26,8 @@ const technologies = [
   { label: "Claude", color: "#E8845C" },
   { label: "Spline", color: "#EC4899", ink: "#FFFFFF" },
   { label: "Slack", color: "#7C3AED", ink: "#FFFFFF" },
+  { label: "WAVE", color: "#1B7FA8", ink: "#FFFFFF" },
+  { label: "Lighthouse", color: "#F04B24", ink: "#FFFFFF" },
 ];
 
 /**
@@ -166,12 +168,16 @@ function FallingPills() {
   }
 
   // El alto va ajustado a lo que ocupa el montón: todo lo que sobre por encima
-  // queda en blanco. En móvil hace falta algo más, porque al ser estrecho apila
-  // más filas.
+  // queda en blanco. En móvil hace falta MÁS que en escritorio, no menos: la
+  // columna es estrecha, así que las mismas píldoras apilan bastantes más filas.
+  // A 375px de ancho las diecisiete suman unos 85.000 px² y el apilado aleatorio
+  // de cuerpos redondeados ronda el 60% de aprovechamiento, así que piden unos
+  // 380px de alto; por debajo de eso las últimas caen fuera y el overflow-hidden
+  // se las come sin avisar.
   return (
     <div
       ref={sceneRef}
-      className="relative h-[340px] w-full select-none overflow-hidden md:h-[360px]"
+      className="relative h-[400px] w-full select-none overflow-hidden md:h-[380px]"
     >
       {technologies.map(({ label, color, ink }, i) => (
         <span
@@ -230,7 +236,7 @@ export default function TechnicalArsenal() {
       {near ? (
         <FallingPills key={sceneKey} />
       ) : (
-        <div className="h-[340px] w-full md:h-[360px]" aria-hidden="true" />
+        <div className="h-[400px] w-full md:h-[380px]" aria-hidden="true" />
       )}
     </section>
   );
