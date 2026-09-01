@@ -5,12 +5,14 @@ import { useI18n } from "../i18n/LanguageContext";
 /**
  * Sticker que asoma al pasar el cursor. `width` va en em para acompañar al
  * clamp del texto. `place: "above"` es para las palabras que no cierran la
- * frase: a la derecha taparían lo que viene después.
+ * frase: a la derecha taparían lo que viene después. `place: "lineEnd"` saca
+ * el sticker del renglón: se coloca donde termina la línea visual en la que
+ * cayó la palabra, midiendo el DOM, porque el corte depende del ancho.
  */
 const STICKERS = {
   ok: { src: "/stickers/ok.png", width: 1.7, place: "above", offset: 0.35, tilt: -8 },
   coffee: { src: "/stickers/coffee.png", width: 3.6, place: "above", offset: 0.55 },
-  flower: { src: "/stickers/flower.png", width: 1.9, spin: true },
+  flower: { src: "/stickers/flower.png", width: 1.9, place: "lineEnd", offset: 0.4, spin: true },
   eye: { src: "/stickers/eye.png", width: 1.9, tilt: -10 },
 };
 
@@ -63,6 +65,13 @@ export default function Statement() {
 
   const [peeking, setPeeking] = useState(null);
 
+  // El sticker de fin de línea no puede colgar de la palabra: vive en el h2 y
+  // se coloca con medidas reales, porque dónde corta cada línea depende del
+  // ancho de la ventana y del idioma.
+  const headingRef = useRef(null);
+  const wordRefs = useRef(new Map());
+  const [lineEnd, setLineEnd] = useState(null);
+
   const words = useMemo(() => {
     const { text, words: marked } = CONTENT[lang] ?? CONTENT.en;
     return text.split(" ").map((word, i) => {
@@ -79,6 +88,49 @@ export default function Statement() {
     });
   }, [lang]);
 
+  /**
+   * Borde derecho de la última palabra que comparte renglón con la señalada:
+   * dos palabras van en la misma línea si sus cajas arrancan a la misma
+   * altura. Devuelve la posición ya relativa al h2.
+   */
+  const measureLineEnd = (word) => {
+    const heading = headingRef.current;
+    const node = wordRefs.current.get(word.id);
+    if (!heading || !node) return null;
+
+    const base = heading.getBoundingClientRect();
+    const rect = node.getBoundingClientRect();
+
+    let right = rect.right;
+    wordRefs.current.forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (Math.abs(r.top - rect.top) < rect.height / 2 && r.right > right) {
+        right = r.right;
+      }
+    });
+
+    const em = parseFloat(getComputedStyle(heading).fontSize) || 16;
+    const width = (word.sticker.width ?? 1.9) * em;
+    const gap = (word.sticker.offset ?? 0.35) * em;
+
+    return {
+      // El tope evita que la flor se salga del bloque y abra scroll lateral
+      // cuando la línea llega justo hasta el margen.
+      left: Math.min(right - base.left + gap, base.width - width),
+      top: rect.top - base.top + rect.height / 2,
+      width,
+    };
+  };
+
+  const handleEnter = (word) => {
+    setPeeking(word.id);
+    if (word.sticker.place === "lineEnd") setLineEnd(measureLineEnd(word));
+  };
+
+  const peekingWord = words.find((word) => word.id === peeking);
+  const lineEndSticker =
+    peekingWord?.sticker?.place === "lineEnd" ? peekingWord.sticker : null;
+
   return (
     <section
       ref={containerRef}
@@ -86,12 +138,17 @@ export default function Statement() {
     >
       <div className="h-full min-h-screen px-4 sm:px-6 md:px-10 lg:px-16 pt-24 md:pt-28 pb-12 flex items-center">
         <motion.h2
+          ref={headingRef}
           style={{ scale, opacity }}
-          className="uppercase font-extrabold text-[#1D212A] leading-[1.05] tracking-tight text-[clamp(1.35rem,4.2vw,3.25rem)] text-center md:text-left"
+          className="relative uppercase font-extrabold text-[#1D212A] leading-[1.05] tracking-tight text-[clamp(1.35rem,4.2vw,3.25rem)] text-center md:text-left"
         >
           {words.map((word, i) => (
             <motion.span
               key={word.id}
+              ref={(el) => {
+                if (el) wordRefs.current.set(word.id, el);
+                else wordRefs.current.delete(word.id);
+              }}
               initial={{ opacity: 0, y: 28 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{
@@ -99,7 +156,7 @@ export default function Statement() {
                 duration: 0.6,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              onMouseEnter={word.sticker ? () => setPeeking(word.id) : undefined}
+              onMouseEnter={word.sticker ? () => handleEnter(word) : undefined}
               onMouseLeave={word.sticker ? () => setPeeking(null) : undefined}
               className={`relative inline-block mr-[0.24em] ${
                 word.highlight
@@ -120,7 +177,7 @@ export default function Statement() {
                   La entrada va en el contenedor y el giro en la imagen, para que
                   no se peleen por la propiedad `rotate`. */}
               <AnimatePresence>
-                {word.sticker && peeking === word.id && (
+                {word.sticker && word.sticker.place !== "lineEnd" && peeking === word.id && (
                   <motion.span
                     initial={{ opacity: 0, scale: 0.4, y: 12 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -158,6 +215,45 @@ export default function Statement() {
               </AnimatePresence>
             </motion.span>
           ))}
+
+          {/* Fuera del flujo del párrafo: se coloca en el hueco que queda tras
+              la última palabra de la línea, con `marginTop` negativo para
+              centrarlo en el renglón sin tocar el `transform` que Framer usa
+              para el rebote de entrada. */}
+          <AnimatePresence>
+            {lineEndSticker && lineEnd && (
+              <motion.span
+                key="line-end-sticker"
+                initial={{ opacity: 0, scale: 0.4 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                transition={{ type: "spring", stiffness: 340, damping: 17 }}
+                style={{
+                  left: lineEnd.left,
+                  top: lineEnd.top,
+                  width: lineEnd.width,
+                  marginTop: -lineEnd.width / 2,
+                }}
+                className="pointer-events-none absolute z-20 block"
+              >
+                <motion.img
+                  src={lineEndSticker.src}
+                  alt=""
+                  className="w-full max-w-none"
+                  animate={
+                    lineEndSticker.spin
+                      ? { rotate: 360 }
+                      : { rotate: lineEndSticker.tilt ?? 0 }
+                  }
+                  transition={
+                    lineEndSticker.spin
+                      ? { duration: 7, repeat: Infinity, ease: "linear" }
+                      : { type: "spring", stiffness: 340, damping: 17 }
+                  }
+                />
+              </motion.span>
+            )}
+          </AnimatePresence>
         </motion.h2>
       </div>
     </section>

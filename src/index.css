@@ -69,8 +69,13 @@
     padding-bottom: 7rem;
   }
 
+  /* El ancho parte el nombre en dos lineas en movil. El `margin-left` es lo
+     que mantiene la caja pegada al borde derecho: sin el, el bloque se queda
+     a la izquierda y el texto, alineado a la derecha de esos 20rem, aparece
+     sangrado respecto al kicker, que si llega al borde. */
   .hero-title {
     max-width: 20rem;
+    margin-left: auto;
   }
 }
 
